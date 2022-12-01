@@ -25,14 +25,15 @@ def callback(img_raw):
     ## estimation
     if ids is not None:
         rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, mtx, dist)
-        # print("==============")
-        # print(tvec)
-        # rotm, jacob = cv2.Rodrigues(rvec)
-        # print(rotm)
+        marker_C = tvec[0][0] # C to M
+        R_M2C, jacob = cv2.Rodrigues(rvec) # C to M
+        marker_A = T_A2C+np.dot(R_A2C, marker_C)
+        print(marker_A)
+        
 
 def listener():
     rospy.init_node('image_subscriber', anonymous=True)
-    rospy.Subscriber("/tello_E/camera/image_raw", Image, callback, queue_size = 1)
+    rospy.Subscriber("/tello_C/camera/image_raw", Image, callback, queue_size = 1)
     rospy.spin()
 
 
@@ -48,6 +49,10 @@ if __name__ == '__main__':
     mtx=np.array([[929.562627  , 0.      ,   487.474037],
     [  0.       ,  928.604856, 361.165223],
     [  0.,           0.,           1.        ]])
+
+    T_A2C = np.array([-0.01338165, 0.05092815, 0.01320737]) # AP to M
+    R_A2C = np.array([[0.99957758, -0.0131693, 0.02590818], [-0.00680008, -0.97267753, -0.23206074], [0.02825638, 0.23178653, -0.9723562]]) # AP to M
+    
 
     br = CvBridge()  
     listener()
