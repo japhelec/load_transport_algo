@@ -58,7 +58,10 @@ class MarkerDetect():
         ## estimation
         if ids is not None:
             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, self.mtx, self.dist)
-            ap = self.T + np.dot(self.R, tvec[0][0])
+            R, jacob = cv2.Rodrigues(rvec) # C to M
+            corner_M = np.array([0.025, 0.025, 0])
+            corner_C = tvec[0][0] + np.dot(R, corner_M)
+            ap = self.T + np.dot(self.R, corner_C)
             
             msg = Point()
             msg.x = ap[0]
