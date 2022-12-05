@@ -26,7 +26,7 @@ class Talker():
         rospy.sleep(6.0) # warm up for publishing
 
         # experiment
-        self.case_flyUp_rotate_Land()
+        # self.case_flyUp_rotate_Land()
 
     def case_motorOn_and_land(self):
         self.util_motor_on()
@@ -138,9 +138,15 @@ class Talker():
         rotm = quaternion_matrix([orien.x, orien.y, orien.z, orien.w])  # x, y, z, w;   quaternion is w + xi + yj + zk
         rotm = np.array(rotm)
         rotm = rotm[0:3, 0:3]
+        Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])  # rotate along x 180
+        Rz_p = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) # rotate along z 90
+        Rz_n = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]) # rotate along z -90
+        rotm = Rz_p.dot(Rx.dot(rotm.dot(Rx.dot(Rz_n)))) # Rz_p -> Rx -> rotm -> Rx -> Rz_n
 
         self.odom_pos = np.array([pos.y, pos.x, -pos.z])
         self.odom_orien = rotm
+
+        # print(self.odom_orien)
 
     def cb_marker(self, marker):
         self.marker = np.array([marker.x, marker.y, marker.z])
