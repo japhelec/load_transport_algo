@@ -8,7 +8,7 @@ import cv2
 from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import PointStamped
 
 DEBUG = False
 
@@ -29,15 +29,15 @@ class MarkerDetect():
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 
-        self.T = data['T']
-        self.R = data['R']
+        self.bTc = data['T']   # from tello attach point to camera
+        self.bRc = data['R']   # from tello attach point to camera
 
         # [ cv Bridge ]
         self.br = CvBridge()
         
         # [ ROS publisher subscriber ]
         self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % tello_ns, Image, self.cb_image, queue_size = 1)
-        self.pub_marker = rospy.Publisher('marker', Point, queue_size=1)
+        self.pub_marker = rospy.Publisher('marker', PointStamped, queue_size=1)
 
     def cb_image(self, img_raw):
         ## cvBridge
@@ -57,16 +57,19 @@ class MarkerDetect():
 
         ## estimation
         if ids is not None:
-            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, self.mtx, self.dist)
-            R, jacob = cv2.Rodrigues(rvec) # C to M
-            corner_M = np.array([0.025, 0.025, 0])
-            corner_C = tvec[0][0] + np.dot(R, corner_M)
-            ap = self.T + np.dot(self.R, corner_C)
+            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, self.mtx, self.dist)  # from C to M
+
+            cTp = tvec[0][0] # to marker middle
+            cRp, jacob = cv2.Rodrigues(rvec) # C to L
+            Pi_p = np.array([0.025, 0.025, 0]) # marker corner in p frame
+            Pi_c = cTp + np.dot(cRp, Pi_p) # marker corner in c frame
+            Pi_b = self.bTc + np.dot(self.bRc, Pi_c) # marker corner in b frame
             
-            msg = Point()
-            msg.x = ap[0]
-            msg.y = ap[1]
-            msg.z = ap[2]
+            msg = PointStamped()
+            msg.header.stamp = rospy.get_rostime()
+            msg.point.x = Pi_b[0]
+            msg.point.y = Pi_b[1]
+            msg.point.z = Pi_b[2]
             self.pub_marker.publish(msg)
 
 def main():
