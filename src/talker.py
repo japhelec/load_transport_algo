@@ -5,7 +5,7 @@ import time
 import rospy
 import numpy as np
 from std_msgs.msg import Empty
-from geometry_msgs.msg import Point
+from load_transport.msg import marker_msg
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_matrix
@@ -14,14 +14,15 @@ class Talker():
     def __init__(self):      
         self.odom_pos = np.array([0,0,0])
         self.odom_orien = np.array([[0,0,0], [0,0,0], [0,0,0]])
-        self.marker = np.array([0,0,0])
+        self.Pi_b = np.array([0,0,0])
+        self.bRl = np.array([[0,0,0],[0,0,0],[0,0,0]])
 
         self.pub_motor_on = rospy.Publisher('manual_takeoff', Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.pub_land = rospy.Publisher('land', Empty, queue_size=1)
         
         self.sub_odom = rospy.Subscriber('odom', Odometry, self.cb_odom, queue_size = 1)
-        self.sub_marker = rospy.Subscriber('marker', Point, self.cb_marker, queue_size = 1)
+        self.sub_marker = rospy.Subscriber('marker', marker_msg, self.cb_marker, queue_size = 1)
 
         rospy.sleep(6.0) # warm up for publishing
 
@@ -149,10 +150,11 @@ class Talker():
         # print(self.odom_orien)
 
     def cb_marker(self, marker):
-        self.marker = np.array([marker.x, marker.y, marker.z])
+        self.Pi_b = np.array(marker.Pi_b)
+        self.bRl = np.array(marker.bRl).reshape([3,3])
 
         # print("===marker====")
-        # print(self.marker)
+        # print(self.bRl)
 
     def test_loop_duration(self, duration):
         # continuously looping for a duration

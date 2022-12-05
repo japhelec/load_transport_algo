@@ -8,7 +8,7 @@ import cv2
 from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PointStamped
+from load_transport.msg import marker_msg
 
 DEBUG = False
 
@@ -31,13 +31,16 @@ class MarkerDetect():
 
         self.bTc = data['T']   # from tello attach point to camera
         self.bRc = data['R']   # from tello attach point to camera
+        self.marker_id = int(rospy.get_param('~marker_id', 1))
+        angle = np.pi/2*self.marker_id
+        self.pRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
 
         # [ cv Bridge ]
         self.br = CvBridge()
         
         # [ ROS publisher subscriber ]
         self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % tello_ns, Image, self.cb_image, queue_size = 1)
-        self.pub_marker = rospy.Publisher('marker', PointStamped, queue_size=1)
+        self.pub_marker = rospy.Publisher('marker', marker_msg, queue_size=1)
 
     def cb_image(self, img_raw):
         ## cvBridge
@@ -54,23 +57,28 @@ class MarkerDetect():
         aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
         parameters =  aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
-
+        
         ## estimation
         if ids is not None:
-            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, self.mtx, self.dist)  # from C to M
+            indices = np.where(ids == 0)[0]
+            isExist = indices.size > 0
 
-            cTp = tvec[0][0] # to marker middle
-            cRp, jacob = cv2.Rodrigues(rvec) # C to L
-            Pi_p = np.array([0.025, 0.025, 0]) # marker corner in p frame
-            Pi_c = cTp + np.dot(cRp, Pi_p) # marker corner in c frame
-            Pi_b = self.bTc + np.dot(self.bRc, Pi_c) # marker corner in b frame
-            
-            msg = PointStamped()
-            msg.header.stamp = rospy.get_rostime()
-            msg.point.x = Pi_b[0]
-            msg.point.y = Pi_b[1]
-            msg.point.z = Pi_b[2]
-            self.pub_marker.publish(msg)
+            if isExist:
+                index = indices[0]
+                corner = corners[index]
+                rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, 0.05, self.mtx, self.dist)  # from C to M
+
+                cTp = tvec[0][0] # to marker middle
+                cRp, jacob = cv2.Rodrigues(rvec) # C to L
+                Pi_p = np.array([0.025, 0.025, 0]) # marker corner in p frame
+                Pi_c = cTp + np.dot(cRp, Pi_p) # marker corner in c frame
+                Pi_b = self.bTc + np.dot(self.bRc, Pi_c) # marker corner in b frame
+                
+                msg = marker_msg()
+                msg.header.stamp = rospy.get_rostime()
+                msg.Pi_b = Pi_b
+                msg.bRl = np.dot(self.bRc, np.dot(cRp, self.pRl)).reshape([9,1])
+                self.pub_marker.publish(msg)
 
 def main():
     rospy.init_node('marker_detect', anonymous=True)
