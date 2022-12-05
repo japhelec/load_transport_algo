@@ -12,8 +12,8 @@ from tf.transformations import quaternion_matrix
 
 class Talker():
     def __init__(self):      
-        self.odom_pos = np.array([0,0,0])
-        self.odom_orien = np.array([[0,0,0], [0,0,0], [0,0,0]])
+        self.Q_i = np.array([0,0,0])
+        self.iRb = np.array([[0,0,0], [0,0,0], [0,0,0]])
         self.Pi_b = np.array([0,0,0])
         self.bRl = np.array([[0,0,0],[0,0,0],[0,0,0]])
 
@@ -144,17 +144,17 @@ class Talker():
         Rz_n = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]) # rotate along z -90
         rotm = Rz_p.dot(Rx.dot(rotm.dot(Rx.dot(Rz_n)))) # Rz_p -> Rx -> rotm -> Rx -> Rz_n
 
-        self.odom_pos = np.array([pos.y, pos.x, -pos.z])
-        self.odom_orien = rotm
+        self.Q_i = np.array([pos.y, pos.x, -pos.z])
+        self.iRb = rotm
 
-        # print(self.odom_orien)
+        # print(self.iRb)
 
     def cb_marker(self, marker):
         self.Pi_b = np.array(marker.Pi_b)
         self.bRl = np.array(marker.bRl).reshape([3,3])
 
         # print("===marker====")
-        # print(self.bRl)
+        # print(self.iRb.dot(self.bRl))
 
     def test_loop_duration(self, duration):
         # continuously looping for a duration

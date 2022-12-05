@@ -32,7 +32,7 @@ class MarkerDetect():
         self.bTc = data['T']   # from tello attach point to camera
         self.bRc = data['R']   # from tello attach point to camera
         self.marker_id = int(rospy.get_param('~marker_id', 1))
-        angle = np.pi/2*self.marker_id
+        angle = -np.pi/2*self.marker_id
         self.pRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
 
         # [ cv Bridge ]
@@ -60,7 +60,7 @@ class MarkerDetect():
         
         ## estimation
         if ids is not None:
-            indices = np.where(ids == 0)[0]
+            indices = np.where(ids == self.marker_id)[0]
             isExist = indices.size > 0
 
             if isExist:
