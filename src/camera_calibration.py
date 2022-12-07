@@ -8,6 +8,35 @@ from sensor_msgs.msg import Image
 from cv2 import aruco
 
 
+
+def rotm2eul(rotm):
+    r00 = rotm[0,0]
+    r01 = rotm[0,1]
+    r02 = rotm[0,2]
+    r10 = rotm[1,0]
+    r11 = rotm[1,1]
+    r12 = rotm[1,2]
+    r20 = rotm[2,0]
+    r21 = rotm[2,1]
+    r22 = rotm[2,2]
+
+    if r21 < 1:
+        if r21 > -1:
+            X = np.arcsin(r21)
+            Z = np.arctan2(-r01, r11)
+            Y = np.arctan2(-r20, r22)
+        else:
+            X = -np.pi/2
+            Z = -np.arctan2(-r02, r0)
+            Y = 0
+    else:
+        X = np.pi/2
+        Z = numpy.arctan2(r02, r00)
+        Y = 0
+
+    return Z, X, Y
+
+
 def callback(img_raw):
     ## cvBridge
     frame = br.imgmsg_to_cv2(img_raw)
@@ -31,8 +60,12 @@ def callback(img_raw):
         C0_AP = T1+np.dot(R1, C0_M)
 
         print("==============")
-        print(C0_AP)
-        print(np.dot(R1, np.linalg.inv(R2)))
+        # print(C0_AP)
+        # print(np.dot(R1, np.linalg.inv(R2)))
+        Z, X, Y = rotm2eul(np.dot(R1, np.linalg.inv(R2)))
+        print(Z)
+        print(X)
+        print(Y)
         # print(T2)
         # print(R2)
 
