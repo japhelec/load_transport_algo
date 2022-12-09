@@ -29,8 +29,8 @@ class MarkerDetect():
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 
-        self.bTc = data['T']   # from tello attach point to camera
-        self.bRc = data['R']   # from tello attach point to camera
+        self.bTc = np.array(data['T'])   # from tello attach point to camera
+        self.bRc = np.array(data['R'])   # from tello attach point to camera
         self.marker_id = int(rospy.get_param('~marker_id', 1))
         angle = -np.pi/2*self.marker_id
         self.pRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
@@ -78,7 +78,7 @@ class MarkerDetect():
                 msg.header.stamp = rospy.get_rostime()
                 msg.Pi_b = Pi_b
                 msg.bRl = np.dot(self.bRc, np.dot(cRp, self.pRl)).reshape([9,1])
-                self.pub_marker.publish(msg)
+                # self.pub_marker.publish(msg)
 
 def main():
     rospy.init_node('marker_detect', anonymous=True)
