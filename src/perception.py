@@ -14,7 +14,7 @@ from load_transport.msg import P_b_msg, payload_msg
 #############################################
 #coordinate frame
 # c: camera frame
-# p: payload frame
+# l: payload frame
 # m: captured marker frame
 # b: Q frame
 # P: ap on payload
@@ -84,12 +84,10 @@ class Perception():
 
             msg = payload_msg()
             msg.header.stamp = rospy.get_rostime()
-            print("==============")
-            print(np.dot(self.bRc, np.dot(cRm, self.get_mRp(id))))
-            msg.bRp = np.dot(self.bRc, np.dot(cRm, self.get_mRp(id))).reshape([9,1])
+            msg.bRl = np.dot(self.bRc, np.dot(cRm, self.get_mRl(id))).reshape([9,1])
             self.pub_payload.publish(msg)
 
-    def getP_p(self):      
+    def getP_l(self):      
         if self.ap_id == 0 or self.ap_id == 6 or self.ap_id == 7:
             x = Payload.width/2
         elif self.ap_id == 1 or self.ap_id == 5:
@@ -106,7 +104,7 @@ class Perception():
 
         return np.array([x, y, 0])
 
-    def getM0_p(self, marker_id):      
+    def getM0_l(self, marker_id):      
         if marker_id == 0 or marker_id == 3:
             x = Payload.width/2 - Marker.length/2
         else:
@@ -119,23 +117,23 @@ class Perception():
 
         return np.array([x, y, 0])
 
-    def get_pRm(self, marker_id):
+    def get_lRm(self, marker_id):
         angle = np.pi/2*marker_id
-        pRm = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-        return pRm
+        lRm = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        return lRm
 
-    def get_mRp(self, marker_id):
+    def get_mRl(self, marker_id):
         angle = -np.pi/2*marker_id
-        mRp = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-        return mRp
+        mRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+        return mRl
         
     def getP_m(self, marker_id):
-        P_p = self.getP_p()
-        M0_p = self.getM0_p(marker_id)
+        P_l = self.getP_l()
+        M0_l = self.getM0_l(marker_id)
 
-        pRm = self.get_pRm(marker_id)
+        lRm = self.get_lRm(marker_id)
 
-        P_m = np.linalg.inv(pRm).dot(P_p - M0_p)
+        P_m = np.linalg.inv(lRm).dot(P_l - M0_l)
         return P_m 
 
 
