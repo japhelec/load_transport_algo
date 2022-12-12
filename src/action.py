@@ -5,7 +5,7 @@ import time
 import rospy
 import numpy as np
 from std_msgs.msg import Empty
-from load_transport.msg import marker_msg
+from load_transport.msg import P_b_msg, payload_msg
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_matrix
@@ -29,27 +29,27 @@ class Payload():
         Pi_l = np.array([cls.width*W_sign, cls.length*L_sign, 0])
         return Pi_l
 
-class Talker():
+class Action():
     def __init__(self):      
-        self.drone_id = int(rospy.get_param('~drone_id', 1))
-
         self.Q_i = np.array([0,0,0])
-        self.iRb = np.array([[0,0,0], [0,0,0], [0,0,0]])
-        self.Pi_b = np.array([0,0,0])
-        self.bRl = np.array([[0,0,0],[0,0,0],[0,0,0]])
+        self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
+        self.P_b = np.array([0,0,0])
+        self.iRl = np.array([[1,0,0],[0,1,0],[0,0,1]])
 
         self.pub_motor_on = rospy.Publisher('manual_takeoff', Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.pub_land = rospy.Publisher('land', Empty, queue_size=1)
         
         self.sub_odom = rospy.Subscriber('odom', Odometry, self.cb_odom, queue_size = 1)
-        self.sub_marker = rospy.Subscriber('marker', marker_msg, self.cb_marker, queue_size = 1)
+        self.sub_payload = rospy.Subscriber('payload', payload_msg, self.cb_payload, queue_size = 1)
+        self.sub_P_b = rospy.Subscriber('P_b', P_b_msg, self.cb_P_b, queue_size = 1)
 
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
         # self.case_motorOn_flyUp_Land()
-        self.case_stabilize_attitude()
+        # self.case_stabilize_attitude()
+        self.case_single_lift_middle()
 
     def case_motorOn_and_land(self):
         self.util_motor_on()
@@ -59,28 +59,11 @@ class Talker():
     def case_motorOn_flyUp_Land(self):
         self.util_motor_on()
         self.util_wait(5.0)
-        self.util_flyup(1)
-        print("================================================")
-        self.util_wait(5)
+        self.util_flyup(2)
+        
+        self.util_wait(6)
         self.util_hover()
-        # self.util_wait(0.5)
-
-        print("================================================")
-
-
-        starttime = time.time()
-        rate = rospy.Rate(10) 
-
-        while not rospy.is_shutdown():
-
-            curret = time.time()
-            sofar = curret - starttime
-
-            if (sofar < 5) :
-                rate.sleep()
-            else:
-                break
-        print("out of loop")
+        self.util_wait(0.5)
 
         self.util_land()
 
@@ -125,39 +108,32 @@ class Talker():
 
         self.util_land()
 
-    def case_stabilize_attitude(self):
+    def case_single_lift_middle(self):
+        print("==================================")
+        print("in case")
+        print("==================================")
         self.util_motor_on()
         self.util_wait(5.0)
 
         # fly up
         self.util_flyup(1)
         self.util_wait(5)
-
-        self.util_hover()
-        self.util_wait(0.5)
         
         # control
-        self.control_alignXY_constZ()
+        self.control_single_lift(15)
         
-        self.util_hover()
-        self.util_hover()
-        self.util_hover()
         self.util_hover()
         self.util_wait(1)
 
         self.util_land()
-        self.util_land()
-        self.util_land()
-        self.util_land()
 
-    
-    def control_alignXY_constZ(self, duration):
-        Kp_x = 3
-        Kp_y = 3
+    def control_single_lift(self, duration):
+        Kp_x = 2
+        Kp_y = 2
         Kp_z = 3
 
         starttime = time.time()
-        rate = rospy.Rate(10) 
+        rate = rospy.Rate(15) 
 
         while not rospy.is_shutdown():
 
@@ -165,38 +141,20 @@ class Talker():
             sofar = curret - starttime
 
             if (sofar < duration) :
-                iRl = self.iRb.dot(self.bRl)
+                z_axis_of_iRl = self.iRl.dot(np.array([0,0,1]))
+                current_angle = np.arccos(z_axis_of_iRl.dot(np.array([0,0,1]))) # rad
+                desire_angle = np.pi/6
+                angle_err = desire_angle - current_angle
 
-                # print("===========")
-                rot_axis = -(iRl - iRl.T)
-                # print(rot_axis)
-                rot_axis = np.array([rot_axis[2,1], rot_axis[0,2], rot_axis[1, 0]])
+                ux = Kp_x * self.P_b[0]
+                uy = Kp_y * self.P_b[1]
+                uz = Kp_z * angle_err
 
-                Pi_i = iRl.dot(Payload.getPi_l(self.drone_id))
-                
-                u = np.cross(rot_axis, Pi_i)
-                self.util_cmd(u[0]*Kp_x, u[1]*Kp_y, u[2]*Kp_z)
-
-                # print(rot_axis)
-                # print(Pi_i)
-                # print(u)
+                self.util_cmd(ux, uy, uz, 0)
 
                 rate.sleep()
             else:
                 break
-
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        print("out of loop")
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        print("================================================")
-        
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -236,15 +194,20 @@ class Talker():
         self.Q_i = np.array([pos.y, pos.x, -pos.z])
         self.iRb = rotm
 
+        # print("====================")
         # print(self.iRb)
 
-    def cb_marker(self, marker):
-        self.Pi_b = np.array(marker.Pi_b)
-        self.bRl = np.array(marker.bRl).reshape([3,3])
+    def cb_payload(self, payload):
+        bRl = np.array(payload.bRl).reshape([3,3])
+        self.iRl = self.iRb.dot(bRl)
 
-        # print("===marker====")
-        # print(self.Pi_b)
-        # print(self.iRb.dot(self.bRl))
+        # print("====================")
+        # print(self.iRl)
+
+    def cb_P_b(self, msg):
+        self.P_b = np.array(msg.P_b)
+        # print("====================")
+        # print(self.P_b)        
 
     def test_loop_duration(self, duration):
         # continuously looping for a duration
@@ -262,8 +225,8 @@ class Talker():
                 break
 
 def main():
-    rospy.init_node('talker', anonymous=True)
-    Talker()
+    rospy.init_node('action', anonymous=True)
+    Action()
     rospy.spin()
 
 

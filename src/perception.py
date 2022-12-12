@@ -49,7 +49,7 @@ class Perception():
         self.pub_P_b = rospy.Publisher('P_b', P_b_msg, queue_size=1)
         self.pub_payload = rospy.Publisher('payload', payload_msg, queue_size=1)
 
-        self.ap_id = 1
+        self.ap_id = int(rospy.get_param('~ap_id', 1))
 
     def cb_image(self, img_raw):
         ## cvBridge
