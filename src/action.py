@@ -51,7 +51,7 @@ class Action():
         # experiment
         # self.case_motorOn_flyUp_Land()
         # self.case_stabilize_attitude()
-        self.case_single_lift_middle()
+        self.case_controlUp_Land()
 
     def case_motorOn_and_land(self):
         self.util_motor_on()
@@ -69,41 +69,11 @@ class Action():
 
         self.util_land()
 
-    def case_flyUp_rotate_Land(self):
+    def case_controlUp_Land(self):
         self.util_motor_on()
-        self.util_wait(2.0)
+        self.util_wait(5.0)
 
-        # fly up
-        self.util_flyup(1)
-        self.util_wait(1.5)
-
-        self.util_hover()
-        self.util_wait(0.5)
-
-        # back ward
-        self.util_cmd(0,-1,0,0)
-        self.util_wait(1.0)
-
-        self.util_hover()
-        self.util_wait(0.5)
-
-        # forward
-        self.util_cmd(0,1,0,0)
-        self.util_wait(1.0)
-
-        self.util_hover()
-        self.util_wait(0.5)
-
-        # rotate
-        self.util_cmd(0,0,0,1)
-        self.util_wait(0.6)
-
-        self.util_hover()
-        self.util_wait(1.2)
-
-        # rotate
-        self.util_cmd(0,0,0,-1)
-        self.util_wait(0.6)
+        self.control_fly_to_taut()
 
         self.util_hover()
         self.util_wait(0.5)
@@ -157,6 +127,29 @@ class Action():
                 rate.sleep()
             else:
                 break
+
+    def control_fly_to_taut(self):
+        Kp_x = 4
+        Kp_y = 4
+        Kp_z = 1
+
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+
+            if (self.P_b[2] > -0.7) :
+                uz = Kp_z * (self.P_b[2] + 0.7)
+            else:
+                if np.absolute(ux) < 0.1 and np.absolute(uy) < 0.1:
+                    break
+                uz = 0
+
+            ux = Kp_x * self.P_b[0]
+            uy = Kp_y * self.P_b[1]
+
+            self.util_cmd(ux, uy, uz, 0)
+            rate.sleep()
+
+        print("**********out of loop***********")
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
