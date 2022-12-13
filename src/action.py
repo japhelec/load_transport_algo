@@ -30,7 +30,9 @@ class Payload():
         return Pi_l
 
 class Action():
-    def __init__(self):      
+    def __init__(self, tello_ns):      
+        self.tello_ns = tello_ns
+
         self.Q_i = np.array([0,0,0])
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
         self.P_b = np.array([0,0,0])
@@ -226,9 +228,10 @@ class Action():
 
 def main():
     rospy.init_node('action', anonymous=True)
-    Action()
+    Action(tello_ns)
     rospy.spin()
 
 
 if __name__ == '__main__':
+    tello_ns = sys.argv[1]
     main()

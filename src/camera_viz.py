@@ -14,6 +14,7 @@ class MarkerDetect():
     def __init__(self, tello_ns):      
         # [ cv Bridge ]
         self.br = CvBridge()
+        self.tello_ns = tello_ns
         
         # [ ROS publisher subscriber ]
         self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % tello_ns, Image, self.cb_image, queue_size = 1)
@@ -25,7 +26,7 @@ class MarkerDetect():
         ## gray
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        cv2.imshow("frame",frame)
+        cv2.imshow(tello_ns,frame)
         key = cv2.waitKey(1)
 
 def main():
