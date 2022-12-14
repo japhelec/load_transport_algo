@@ -46,12 +46,13 @@ class Action():
         self.sub_payload = rospy.Subscriber('payload', payload_msg, self.cb_payload, queue_size = 1)
         self.sub_P_b = rospy.Subscriber('P_b', P_b_msg, self.cb_P_b, queue_size = 1)
 
+        rospy.on_shutdown(self.shutdown_hook)
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
         # self.case_motorOn_flyUp_Land()
-        # self.case_stabilize_attitude()
         self.case_controlUp_Land()
+        # self.test_loop_duration(100)
 
     def case_motorOn_and_land(self):
         self.util_motor_on()
@@ -129,8 +130,8 @@ class Action():
                 break
 
     def control_fly_to_taut(self):
-        Kp_x = 4
-        Kp_y = 4
+        Kp_x = 3
+        Kp_y = 3
         Kp_z = 1
 
         rate = rospy.Rate(15) 
@@ -140,7 +141,8 @@ class Action():
                 uz = Kp_z * (self.P_b[2] + 0.7)
             else:
                 if np.absolute(ux) < 0.1 and np.absolute(uy) < 0.1:
-                    break
+                    self.util_hover()
+                    continue
                 uz = 0
 
             ux = Kp_x * self.P_b[0]
@@ -148,8 +150,8 @@ class Action():
 
             self.util_cmd(ux, uy, uz, 0)
             rate.sleep()
+        print("===========%s out of loop===========" % self.tello_ns)
 
-        print("**********out of loop***********")
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -204,6 +206,13 @@ class Action():
         # print("====================")
         # print(self.P_b)        
 
+    def shutdown_hook(self):
+        print("************in shutdown hook*************")
+        self.util_hover()
+        self.util_wait(0.5)
+
+        self.util_land()
+
     def test_loop_duration(self, duration):
         # continuously looping for a duration
         starttime = time.time()
@@ -218,6 +227,8 @@ class Action():
                 rate.sleep()
             else:
                 break
+        
+        # print("==============here in loop duration===============")
 
 def main():
     rospy.init_node('action', anonymous=True)
