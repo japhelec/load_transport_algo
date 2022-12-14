@@ -140,7 +140,8 @@ class Action():
             if (self.P_b[2] > -0.7) :
                 uz = Kp_z * (self.P_b[2] + 0.7)
             else:
-                if np.absolute(ux) < 0.1 and np.absolute(uy) < 0.1:
+                if np.absolute(self.P_b[0]) < 0.1 and np.absolute(self.P_b[1]) < 0.1:
+                    print(self.P_b)
                     self.util_hover()
                     continue
                 uz = 0
