@@ -130,43 +130,40 @@ class Action():
                 break
 
     def control_fly_to_taut(self):
-        Kp_x = 2
-        Kp_y = 2
-        Kp_z = 0.5
-
+        Kp_x = 2.5
+        Kp_y = 2.5
         Ki_x = 0.01
         Ki_y = 0.01
-        # sumErr_x = 0
-        # sumErr_y = 0
+        Kd_x = 0.002
+        Kd_y = 0.002
+        
+        preErr_x = 0.0
+        preErr_y = 0.0
+        sumErr_x = 0.0
+        sumErr_y = 0.0
+        
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
 
             if (self.P_b[2] > -0.7):
-                # uz = Kp_z * (self.P_b[2] + 0.7)
-
-                # if uz < 0.4:
-                #     uz = 0.4
                 uz = 0.3
             else:
                 uz = 0
-                # if np.absolute(self.P_b[0]) < 0.05 and np.absolute(self.P_b[1]) < 0.05:
-                #     print("====================")
-                #     print(self.P_b)
-                    # self.util_hover()
-                    # continue
             
-            # sumErr_x += self.P_b[0]
-            # sumErr_y += self.P_b[1]
-
-            # ux = Kp_x * self.P_b[0] + Ki_x * sumErr_x
-            # uy = Kp_y * self.P_b[1] + Ki_y * sumErr_y
-            ux = self.math_set_cmd_th(Kp_x * self.P_b[0])
-            uy = self.math_set_cmd_th(Kp_y * self.P_b[1])
+            ###### PID #######
+            sumErr_x = sumErr_x + self.P_b[0]
+            sumErr_y = sumErr_y + self.P_b[1]
+            dErr_x = self.P_b[0] - preErr_x
+            dErr_y = self.P_b[1] - preErr_y
+            ux = Kp_x * self.P_b[0] + Ki_x * sumErr_x + Kd_x * dErr_x
+            uy = Kp_y * self.P_b[1] + Ki_y * sumErr_y + Kd_y * dErr_y
+            preErr_x = self.P_b[0]
+            preErr_y = self.P_b[1]
+            ###### PID #######
 
             self.util_cmd(ux, uy, uz, 0)
             rate.sleep()
-        print("===========%s out of loop===========" % self.tello_ns)
 
 
     def util_cmd(self, x, y, z, yaw):
