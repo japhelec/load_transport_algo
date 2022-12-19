@@ -105,38 +105,29 @@ class Perception():
         return np.array([x, y, 0])
 
     def getM0_l(self, marker_id):      
-        if marker_id == 4:
-            x = -Payload.width/2 + 0.06
-            y = 0
-            return np.array([x, y, 0])
-
-
-        if marker_id == 0 or marker_id == 3:
+        if marker_id == 0 or marker_id == 3 or marker_id == 7:
             x = Payload.width/2 - Marker.length/2
-        else:
+        elif marker_id == 1 or marker_id == 2 or marker_id == 5:
             x = -Payload.width/2 + Marker.length/2
-
-        if marker_id == 0 or marker_id == 1:
-            y = Payload.length/2 - Marker.length/2
         else:
+            x = 0
+
+        if marker_id == 0 or marker_id == 1 or marker_id == 4:
+            y = Payload.length/2 - Marker.length/2
+        elif marker_id == 2 or marker_id == 3 or marker_id == 6:
             y = -Payload.length/2 + Marker.length/2
+        else:
+            y = 0
 
         return np.array([x, y, 0])
 
     def get_lRm(self, marker_id):
-        if marker_id == 4:
-            return np.array([[1, 0, 0], [0,1,0], [0,0,1]])
-
-
-        angle = np.pi/2*marker_id
+        angle = np.pi/2*(marker_id%4)
         lRm = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         return lRm
 
     def get_mRl(self, marker_id):
-        if marker_id == 4:
-            return np.array([[1, 0, 0], [0,1,0], [0,0,1]])
-
-        angle = -np.pi/2*marker_id
+        angle = -np.pi/2*(marker_id%4)
         mRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         return mRl
         
