@@ -130,24 +130,39 @@ class Action():
                 break
 
     def control_fly_to_taut(self):
-        Kp_x = 3
-        Kp_y = 3
-        Kp_z = 1
+        Kp_x = 2
+        Kp_y = 2
+        Kp_z = 0.5
+
+        Ki_x = 0.01
+        Ki_y = 0.01
+        # sumErr_x = 0
+        # sumErr_y = 0
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
 
-            if (self.P_b[2] > -0.7) :
-                uz = Kp_z * (self.P_b[2] + 0.7)
-            else:
-                if np.absolute(self.P_b[0]) < 0.1 and np.absolute(self.P_b[1]) < 0.1:
-                    print(self.P_b)
-                    self.util_hover()
-                    continue
-                uz = 0
+            if (self.P_b[2] > -0.7):
+                # uz = Kp_z * (self.P_b[2] + 0.7)
 
-            ux = Kp_x * self.P_b[0]
-            uy = Kp_y * self.P_b[1]
+                # if uz < 0.4:
+                #     uz = 0.4
+                uz = 0.3
+            else:
+                uz = 0
+                # if np.absolute(self.P_b[0]) < 0.05 and np.absolute(self.P_b[1]) < 0.05:
+                #     print("====================")
+                #     print(self.P_b)
+                    # self.util_hover()
+                    # continue
+            
+            # sumErr_x += self.P_b[0]
+            # sumErr_y += self.P_b[1]
+
+            # ux = Kp_x * self.P_b[0] + Ki_x * sumErr_x
+            # uy = Kp_y * self.P_b[1] + Ki_y * sumErr_y
+            ux = self.math_set_cmd_th(Kp_x * self.P_b[0])
+            uy = self.math_set_cmd_th(Kp_y * self.P_b[1])
 
             self.util_cmd(ux, uy, uz, 0)
             rate.sleep()
@@ -231,6 +246,16 @@ class Action():
         
         # print("==============here in loop duration===============")
 
+    def math_set_cmd_th(self, val):
+        if -0.15 < val and val < 0:
+            val = -0.15
+        elif val > 0 and 0.15 > val:
+            val = 0.15
+        else:
+            val = val
+
+        return val
+            
 def main():
     rospy.init_node('action', anonymous=True)
     Action(tello_ns)
