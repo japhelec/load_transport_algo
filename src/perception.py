@@ -29,7 +29,10 @@ class Marker():
     length = 0.05 #m
 
 class Perception():
-    def __init__(self, tello_ns):      
+    def __init__(self):      
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
+        self.ap_id = int(rospy.get_param('~ap_id', 1))
+
         # [ camera ]
         self.dist = np.array(([[-0.016272, 0.093492, 0.000093, 0.002999, 0]]))
         self.mtx = np.array([[929.562627  , 0.      ,   487.474037],
@@ -37,7 +40,7 @@ class Perception():
         [  0.,           0.,           1.        ]])
 
         # [ cam to body ]
-        filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % "tello_601"
+        filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % self.tello_ns
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 
@@ -45,11 +48,9 @@ class Perception():
         self.bRc = np.array(data['R'])   # from tello attach point to camera
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % tello_ns, Image, self.cb_image, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_image, queue_size = 1)
         self.pub_P_b = rospy.Publisher('P_b', P_b_msg, queue_size=1)
         self.pub_payload = rospy.Publisher('payload', payload_msg, queue_size=1)
-
-        self.ap_id = int(rospy.get_param('~ap_id', 1))
 
     def cb_image(self, img_raw):
         ## cvBridge
@@ -144,10 +145,9 @@ class Perception():
 
 def main():
     rospy.init_node('marker_detect', anonymous=True)
-    Perception(tello_ns)
+    Perception()
     rospy.spin()
 
 
 if __name__ == '__main__':
-    tello_ns = sys.argv[1]
     main()

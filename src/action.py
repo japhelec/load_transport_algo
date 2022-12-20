@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import yaml
 import sys
 import time
 import rospy
@@ -30,8 +31,8 @@ class Payload():
         return Pi_l
 
 class Action():
-    def __init__(self, tello_ns):      
-        self.tello_ns = tello_ns
+    def __init__(self):      
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
 
         self.Q_i = np.array([0,0,0])
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
@@ -50,7 +51,7 @@ class Action():
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
-        # self.case_motorOn_flyUp_Land()
+        # self.case_motorOn_and_land()
         self.case_controlUp_Land()
         # self.test_loop_duration(100)
 
@@ -130,12 +131,16 @@ class Action():
                 break
 
     def control_fly_to_taut(self):
-        Kp_x = 2.5
-        Kp_y = 2.5
-        Ki_x = 0.01
-        Ki_y = 0.01
-        Kd_x = 0.002
-        Kd_y = 0.002
+        filepath = '/home/kuei/catkin_ws/src/load_transport/src/flyup_pid_gain/%s.yml' % self.tello_ns
+        with open(filepath, 'r') as f:
+            data = yaml.load(f)
+
+        Kp_x = data['Kp_x']
+        Kp_y = data['Kp_y']
+        Kd_x = data['Kd_x']
+        Kd_y = data['Kd_y']
+        Ki_x = data['Ki_x']
+        Ki_y = data['Ki_y']
         
         preErr_x = 0.0
         preErr_y = 0.0
@@ -255,10 +260,9 @@ class Action():
             
 def main():
     rospy.init_node('action', anonymous=True)
-    Action(tello_ns)
+    Action()
     rospy.spin()
 
 
 if __name__ == '__main__':
-    tello_ns = sys.argv[1]
     main()

@@ -11,13 +11,13 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point
 
 class MarkerDetect():
-    def __init__(self, tello_ns):      
+    def __init__(self):      
         # [ cv Bridge ]
         self.br = CvBridge()
-        self.tello_ns = tello_ns
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
         
         # [ ROS publisher subscriber ]
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % tello_ns, Image, self.cb_image, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_image, queue_size = 1)
 
     def cb_image(self, img_raw):
         ## cvBridge
@@ -26,15 +26,14 @@ class MarkerDetect():
         ## gray
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        cv2.imshow(tello_ns,frame)
+        cv2.imshow(self.tello_ns,frame)
         key = cv2.waitKey(1)
 
 def main():
     rospy.init_node('camera_viz', anonymous=True)
-    MarkerDetect(tello_ns)
+    MarkerDetect()
     rospy.spin()
 
 
 if __name__ == '__main__':
-    tello_ns = sys.argv[1]
     main()
