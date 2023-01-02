@@ -49,7 +49,7 @@ class Perception():
         self.bRc = np.array(data['R'])   # from tello attach point to camera
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_marker_perception, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_board_perception, queue_size = 1)
         self.pub_P_b = rospy.Publisher('P_b', P_b_msg, queue_size=1)
         self.pub_payload = rospy.Publisher('payload', payload_msg, queue_size=1)
 
@@ -65,7 +65,6 @@ class Perception():
         parameters =  aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
         
-        print("here")
         ## estimation
         if ids is not None:
             # any marker is ok
@@ -74,6 +73,45 @@ class Perception():
             
             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, 0.15, self.mtx, self.dist)
             c0m0_c = tvec[0][0] 
+            cRm, jacob = cv2.Rodrigues(rvec) 
+
+            msg = P_b_msg()
+            msg.header.stamp = rospy.get_rostime()
+            msg.P_b = -np.linalg.inv(cRm).dot(c0m0_c)
+            self.pub_P_b.publish(msg)
+
+    def cb_board_perception(self, img_raw):
+        ## board
+        markersX = 6
+        markersY = 5
+        markerLength = 3.15 # cm
+        markerSeparation = 1.05 # cm
+        dictionary = aruco.Dictionary_get(aruco.DICT_4X4_50)
+        self.board = cv2.aruco.GridBoard_create(markersX, markersY, markerLength, markerSeparation, dictionary)
+
+        ## cvBridge
+        img = self.br.imgmsg_to_cv2(img_raw)
+
+        ## gray
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        ## detect
+        aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+        parameters =  aruco.DetectorParameters_create()
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
+        aruco.drawDetectedMarkers(img, corners, ids)
+
+        ## DEBUG (show markers)
+        # cv2.imshow(self.tello_ns,img)
+        # key = cv2.waitKey(1)
+        
+        ## estimation
+        if ids is not None:
+            rvec = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype='f')
+            tvec = np.array([0,0,0], dtype='f')
+            retval, rvec, tvec = aruco.estimatePoseBoard(corners, ids, self.board, self.mtx, self.dist, rvec, tvec)  # from C to M
+            
+            c0m0_c = tvec
             cRm, jacob = cv2.Rodrigues(rvec) 
 
             msg = P_b_msg()
