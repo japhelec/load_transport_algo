@@ -40,7 +40,8 @@ class Perception():
         [  0.,           0.,           1.        ]])
 
         # [ cam to body ]
-        filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % self.tello_ns
+        # filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % self.tello_ns
+        filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % "tello_601"
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 
@@ -48,11 +49,39 @@ class Perception():
         self.bRc = np.array(data['R'])   # from tello attach point to camera
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_image, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_marker_perception, queue_size = 1)
         self.pub_P_b = rospy.Publisher('P_b', P_b_msg, queue_size=1)
         self.pub_payload = rospy.Publisher('payload', payload_msg, queue_size=1)
 
-    def cb_image(self, img_raw):
+    def cb_marker_perception(self, img_raw):
+        ## cvBridge
+        frame = self.br.imgmsg_to_cv2(img_raw)
+
+        ## gray
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        ## detect
+        aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
+        parameters =  aruco.DetectorParameters_create()
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
+        
+        print("here")
+        ## estimation
+        if ids is not None:
+            # any marker is ok
+            id = ids[0][0]
+            corner = corners[0]
+            
+            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, 0.15, self.mtx, self.dist)
+            c0m0_c = tvec[0][0] 
+            cRm, jacob = cv2.Rodrigues(rvec) 
+
+            msg = P_b_msg()
+            msg.header.stamp = rospy.get_rostime()
+            msg.P_b = -np.linalg.inv(cRm).dot(c0m0_c)
+            self.pub_P_b.publish(msg)
+
+    def cb_attach_point_perception(self, img_raw):
         ## cvBridge
         frame = self.br.imgmsg_to_cv2(img_raw)
 

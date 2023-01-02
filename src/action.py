@@ -51,8 +51,8 @@ class Action():
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
-        # self.case_motorOn_and_land()
-        self.case_controlUp_Land()
+        self.case_motorOn_flyUp_Land()
+        # self.case_controlUp_Land()
         # self.test_loop_duration(100)
 
     def case_motorOn_and_land(self):
@@ -63,9 +63,9 @@ class Action():
     def case_motorOn_flyUp_Land(self):
         self.util_motor_on()
         self.util_wait(5.0)
-        self.util_flyup(2)
+        self.util_flyup(0.3)
         
-        self.util_wait(6)
+        self.util_wait(10)
         self.util_hover()
         self.util_wait(0.5)
 
