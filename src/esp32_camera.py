@@ -71,5 +71,5 @@ class ESP32_CAM:
 
 
 if __name__ == '__main__':
-    rospy.init_node('esp32_cam', anonymous=True)
+    rospy.init_node('esp32_camera', anonymous=True)
     ESP32_CAM()

@@ -16,11 +16,11 @@ class MarkerDetect():
         self.br = CvBridge()
         
         # [ ROS publisher subscriber ]
-        self.sub_image = rospy.Subscriber("/esp32/image_raw", Image, self.cb_image_raw, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/esp32/compressed/compressed", CompressedImage, self.cb_image_compressed, queue_size = 1)
 
-    def cb_image_raw(self, img_raw):
+    def cb_image_compressed(self, img_raw):
         ## cvBridge
-        frame = self.br.imgmsg_to_cv2(img_raw)
+        frame = self.br.compressed_imgmsg_to_cv2(img_raw, desired_encoding="bgr8")
         # print(frame)
 
         ## gray
