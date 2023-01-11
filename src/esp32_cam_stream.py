@@ -38,8 +38,8 @@ class ESP32_CAM:
                     self.pub_image_raw.publish(self.bridge.cv2_to_imgmsg(gray))
                     
                     # gray = cv2.equalizeHist(gray)
-                    cv2.imshow("frame", gray)
-                    key = cv2.waitKey(1)
+                    # cv2.imshow("frame", gray)
+                    # key = cv2.waitKey(1)
 
     def set_resolution(self, url: str, index: int=1, verbose: bool=False):
         try:
