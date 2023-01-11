@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-	<node pkg="load_transport" name="esp32_camera" type="esp32_camera.py" output="screen">	
+	<node pkg="load_transport" name="esp32_camera_stream" type="esp32_cam_stream.py" output="screen">	
+	</node>
+
+	<node pkg="load_transport" name="esp32_camera_percep" type="esp32_cam_percep.py" output="screen">	
 	</node>
 
 	<node pkg="image_transport" name="image_compressed" type="republish" args="raw in:=esp32/image_raw compressed out:=esp32/compressed" />
