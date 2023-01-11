@@ -49,7 +49,7 @@ class Perception():
         self.bRc = np.array(data['R'])   # from tello attach point to camera
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_board_perception, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_attach_point_perception, queue_size = 1)
         self.pub_P_b = rospy.Publisher('P_b', P_b_msg, queue_size=1)
         self.pub_payload = rospy.Publisher('payload', payload_msg, queue_size=1)
 
