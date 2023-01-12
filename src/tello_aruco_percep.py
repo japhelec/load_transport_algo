@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
-import yaml
 import rospy
 import numpy as np
 import cv2
@@ -10,30 +8,22 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from load_transport.msg import position_msg, rotation_msg
 
-#############################################
-#coordinate frame
-# c: camera frame
-# l: payload frame
-# m: captured marker frame
-# b: Q frame
-# P: ap on payload
-#############################################
-
 class Marker():
     length = 0.05 #m
 
 class Perception():
-    def __init__(self):
-        with open('/home/kuei/catkin_ws/src/load_transport/src/camera_calib/esp32_intrinsic.yml', 'r') as f:
-            data = yaml.load(f, Loader=yaml.UnsafeLoader)
-        
-        self.mtx = np.array(data['mtx'])
-        self.dist = np.array(data['dist'])
+    def __init__(self):      
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
+
+        self.dist = np.array(([[-0.016272, 0.093492, 0.000093, 0.002999, 0]]))
+        self.mtx = np.array([[929.562627  , 0.      ,   487.474037],
+        [  0.       ,  928.604856, 361.165223],
+        [  0.,           0.,           1.        ]])
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/esp32/image_raw", Image, self.cb_marker_perception, queue_size = 1)
-        self.pub_p1_position = rospy.Publisher('/p1/position', position_msg, queue_size=1)
-        self.pub_payload_rotation = rospy.Publisher('/payload/R_1', rotation_msg, queue_size=1)
+        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_marker_perception, queue_size = 1)
+        self.pub_p2_position = rospy.Publisher('/p2/position', position_msg, queue_size=1)
+        self.pub_payload_rotation = rospy.Publisher('/payload/R_2', rotation_msg, queue_size=1)
 
     def cb_marker_perception(self, img_raw):
         ## cvBridge
@@ -60,7 +50,7 @@ class Perception():
             msg = position_msg()
             msg.header.stamp = rospy.get_rostime()
             msg.position = tvec[0][0]
-            self.pub_p1_position.publish(msg)
+            self.pub_p2_position.publish(msg)
 
             msg = rotation_msg()
             msg.header.stamp = rospy.get_rostime()
@@ -69,7 +59,7 @@ class Perception():
 
 
 def main():
-    rospy.init_node('esp32_percep', anonymous=True)
+    rospy.init_node('tello_percep', anonymous=True)
     Perception()
     rospy.spin()
 
