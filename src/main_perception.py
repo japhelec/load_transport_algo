@@ -143,7 +143,8 @@ class Perception():
 
             P_m = self.getP_m(id)
             P_c = c0m0_c + cRm.dot(P_m)
-            P_b = self.bRc.dot(P_c) + np.array([0,0.05,0])
+            # P_b = self.bRc.dot(P_c) + np.array([0,0.05,0])
+            P_b = self.bRc.dot(P_c)
 
             msg = P_b_msg()
             msg.header.stamp = rospy.get_rostime()
