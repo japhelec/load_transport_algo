@@ -151,8 +151,9 @@ class Action():
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
 
-            if (self.P_b[2] > -1.1):
-            # if (self.P_b[2] > -0.7):
+            if (self.P_b[2] > -0.6):
+                uz = 0.8
+            elif (self.P_b[2] < -0.6) and (self.P_b[2] > -1.1):
                 uz = 0.3
             else:
                 uz = 0
