@@ -40,8 +40,8 @@ class Perception():
         [  0.,           0.,           1.        ]])
 
         # [ cam to body ]
-        # filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % self.tello_ns
-        filepath = '/home/kuei/catkin_ws/src/load_transport/src/camera_calib/%s.yml' % "tello_601"
+        # filepath = '/home/chungyu/kuei_ws/src/load_transport/src/camera_calib/%s.yml' % self.tello_ns
+        filepath = '/home/chungyu/kuei_ws/src/load_transport/src/camera_calib/%s.yml' % "tello_601"
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 

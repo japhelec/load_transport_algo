@@ -51,6 +51,7 @@ class Action():
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
+        # self.case_motorOn_and_land()
         self.case_controlUp_Land()
         # self.case_controlUp_Land()
         # self.test_loop_duration(100)
@@ -131,7 +132,7 @@ class Action():
                 break
 
     def control_fly_to_taut(self):
-        filepath = '/home/kuei/catkin_ws/src/load_transport/src/flyup_pid_gain/%s.yml' % self.tello_ns
+        filepath = '/home/chungyu/kuei_ws/src/load_transport/src/flyup_pid_gain/%s.yml' % self.tello_ns
         with open(filepath, 'r') as f:
             data = yaml.load(f)
 
