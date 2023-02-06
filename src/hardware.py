@@ -1,9 +1,46 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import yaml
 
-class Marker():
+
+filepath = './camera_calib/%s.yml' % "tello_601"
+with open(filepath, 'r') as f:
+    drone_601_hd = yaml.load(f, Loader=yaml.FullLoader)
+
+filepath = './camera_calib/%s.yml' % "tello_C"
+with open(filepath, 'r') as f:
+    drone_C_hd = yaml.load(f, Loader=yaml.FullLoader)
+
+filepath = './camera_calib/%s.yml' % "tello_E"
+with open(filepath, 'r') as f:
+    drone_E_hd = yaml.load(f, Loader=yaml.FullLoader)
+
+
+#############################################
+#coordinate frame
+# c: camera frame
+# l: payload frame
+# m: captured marker frame
+# b: Q frame
+# P: ap on payload
+#############################################
+
+
+
+class Marker:
     length = 0.05 #m
+
+class Drone:
+    @staticmethod
+    def bRc(drone_id):
+        if drone_id == "tello_601":
+            return np.array(drone_601_hd['R'])
+        elif drone_id == "tello_C":
+            return np.array(drone_C_hd['R'])
+        elif drone_id == "tello_E":
+            return np.array(drone_E_hd['R'])
+            
 
 class Payload:
     @staticmethod
