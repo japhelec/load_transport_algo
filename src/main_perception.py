@@ -55,14 +55,12 @@ class Perception():
             msg = cRm_msg()
             msg.header.stamp = rospy.get_rostime()
             msg.marker_id = int(id)
-            msg.drone_id = self.tello_ns
             msg.rvec = rvec[0][0]
             self.pub_cRm.publish(msg)
 
             msg = Mc_msg()
             msg.header.stamp = rospy.get_rostime()
             msg.marker_id = int(id)
-            msg.drone_id = self.tello_ns
             msg.tvec = tvec[0][0]
             self.pub_Mc.publish(msg)
 
