@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import yaml
-import sys
 import time
 import rospy
 import numpy as np
@@ -10,25 +9,7 @@ from load_transport.msg import P_b_msg, payload_msg
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_matrix
-
-class Payload():
-    length = 0.2095
-    width = 0.3375
-
-    @classmethod
-    def getPi_l(cls, id):
-        if id == 0 or id == 3:
-            W_sign = 1
-        else:
-            W_sign = -1
-        
-        if id == 0 or id == 1:
-            L_sign = 1
-        else:
-            L_sign = -1
-
-        Pi_l = np.array([cls.width*W_sign, cls.length*L_sign, 0])
-        return Pi_l
+from hardware import Payload, Drone
 
 class Action():
     def __init__(self):      
@@ -51,10 +32,7 @@ class Action():
         rospy.sleep(5.0) # warm up for publishing
 
         # experiment
-        # self.case_motorOn_and_land()
-        self.case_controlUp_Land()
         # self.case_controlUp_Land()
-        # self.test_loop_duration(100)
 
     def case_motorOn_and_land(self):
         self.util_motor_on()
@@ -173,7 +151,6 @@ class Action():
             self.util_cmd(ux, uy, uz, 0)
             rate.sleep()
 
-
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
         msg.linear.x = x
@@ -250,16 +227,6 @@ class Action():
                 break
         
         # print("==============here in loop duration===============")
-
-    def math_set_cmd_th(self, val):
-        if -0.15 < val and val < 0:
-            val = -0.15
-        elif val > 0 and 0.15 > val:
-            val = 0.15
-        else:
-            val = val
-
-        return val
             
 def main():
     rospy.init_node('action', anonymous=True)
