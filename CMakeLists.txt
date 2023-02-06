@@ -57,6 +57,8 @@ add_message_files(
   payload_msg.msg
   position_msg.msg
   rotation_msg.msg
+  cRm_msg.msg
+  Mc_msg.msg
 )
 
 ## Generate services in the 'srv' folder
