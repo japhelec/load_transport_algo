@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 
+import os
 import numpy as np
 import yaml
+import pathlib
 
+path = os.path.dirname(__file__)
 
-filepath = './camera_calib/%s.yml' % "tello_601"
+filepath = str(path) + '/camera_calib/%s.yml' % "tello_601"
 with open(filepath, 'r') as f:
     drone_601_hd = yaml.load(f, Loader=yaml.FullLoader)
 
-filepath = './camera_calib/%s.yml' % "tello_C"
+filepath = str(path) + '/camera_calib/%s.yml' % "tello_C"
 with open(filepath, 'r') as f:
     drone_C_hd = yaml.load(f, Loader=yaml.FullLoader)
 
-filepath = './camera_calib/%s.yml' % "tello_E"
+filepath = str(path) + '/camera_calib/%s.yml' % "tello_E"
 with open(filepath, 'r') as f:
     drone_E_hd = yaml.load(f, Loader=yaml.FullLoader)
 
