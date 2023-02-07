@@ -5,6 +5,7 @@ import rospy
 import smach
 import numpy as np
 import cv2
+import threading
 
 # message
 from std_msgs.msg import Empty
@@ -54,6 +55,16 @@ class sLand(smach.State):
         pubs.util_land()
         return 'land_finish'
 
+class sFake(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fake_finish'])
+        print("**************************")
+        rospy.loginfo('Executing state FAKE')
+        print("**************************")
+
+    def execute(self, userdata):
+        return 'fake_finish'
+
 class Control():
     def __init__(self):        
         self.sm = smach.StateMachine(outcomes=['control_finish'])
@@ -61,10 +72,13 @@ class Control():
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'LAND'})
             smach.StateMachine.add('LAND', sLand(), 
-                transitions={'land_finish':'control_finish'})
+                transitions={'land_finish':'FAKE'})
+            smach.StateMachine.add('FAKE', sFake(), 
+                transitions={'fake_finish':'control_finish'})
             # smach.StateMachine.add('UP_OPEN', sUpOpen(), 
             #     transitions={'up_open_finish':'control_finish'})
-        outcome = self.sm.execute()
+        smach_thread = threading.Thread(target=self.sm.execute, daemon = True)
+        smach_thread.start()
 
 class Pubs():
     def __init__(self):
@@ -95,7 +109,7 @@ class Pubs():
     def shutdown_hook(self):
         print("************in shutdown hook*************")
         self.util_hover()
-        self.util_wait(0.5)
+        rospy.sleep(0.5)
         self.util_land()
 
 class Subs():
@@ -149,5 +163,6 @@ if __name__ == '__main__':
     ap_id = 2
     subs = Subs()
     pubs = Pubs()    
-
+    
     Control()
+    rospy.spin()

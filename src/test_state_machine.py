@@ -2,6 +2,7 @@
 
 import rospy
 import smach
+import threading
 
 # define state Foo
 class Foo(smach.State):
@@ -11,6 +12,7 @@ class Foo(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state FOO')
+        rospy.sleep(2)
         if self.counter < 3:
             self.counter += 1
             return 'outcome1'
@@ -47,8 +49,11 @@ def main():
                                transitions={'outcome2':'FOO'})
 
     # Execute SMACH plan
-    outcome = sm.execute()
+    # outcome = sm.execute()
+    smach_thread = threading.Thread(target=sm.execute, daemon = True)
+    smach_thread.start()
 
+    rospy.spin()
 
 if __name__ == '__main__':
     main()
