@@ -8,7 +8,7 @@ import cv2
 
 # message
 from std_msgs.msg import Empty
-from load_transport.msg import cRm_msg, Mc_msg
+from load_transport.msg import cRm_msg, Mc_msg, position_msg
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_matrix
@@ -36,7 +36,6 @@ class sFake(smach.State):
         print("**************************")
 
     def execute(self, userdata):
-        print(subs.cRm)
         return 'fake_finish'
 
 class Control():
@@ -79,13 +78,15 @@ class Subs():
         self.Q_i = np.array([0,0,0])
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
         self.marker_id = None
-        self.Mc = np.array([0,0,0])
+        self.Ql = np.array([0,0,0])
         self.cRm = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        self.mRl = np.array([[1,0,0],[0,1,0],[0,0,1]])
         self.bRc = Drone.bRc(tello_ns)
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
+        # self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
+        self.sub_Ql = rospy.Subscriber('/%s/Ql' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
 
     def cb_odom(self, odom):
@@ -109,11 +110,10 @@ class Subs():
         rvec = np.array([[data.rvec]])
         cRm, jacob = cv2.Rodrigues(rvec) 
         self.cRm = cRm
+        self.mRl = Payload.mRl(data.marker_id)
 
-    def cb_Mc(self, data):
-        self.marker_id = data.marker_id
-        self.Mc = np.array(data.tvec)
-
+    def cb_Ql(self, data):
+        self.Ql = np.array(data.position)
   
 if __name__ == '__main__':
     rospy.init_node('control', anonymous=True)
