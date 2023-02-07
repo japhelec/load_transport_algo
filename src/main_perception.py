@@ -6,8 +6,8 @@ import cv2
 from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from load_transport.msg import cRm_msg, Mc_msg
-from hardware import Marker
+from load_transport.msg import cRm_msg, Mc_msg, position_msg
+from hardware import Marker, Payload
 
 class Perception():
     def __init__(self):      
@@ -23,6 +23,7 @@ class Perception():
         self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_marker_perception, queue_size = 1)
         self.pub_cRm = rospy.Publisher('/%s/cRm' % self.tello_ns, cRm_msg, queue_size=1)
         self.pub_Mc = rospy.Publisher('/%s/Mc' % self.tello_ns, Mc_msg, queue_size=1)
+        self.pub_Ql = rospy.Publisher('/%s/Ql' % self.tello_ns, position_msg, queue_size=1)
 
     def cb_marker_perception(self, img_raw):
         ## cvBridge
@@ -64,6 +65,16 @@ class Perception():
             msg.tvec = tvec[0][0]
             self.pub_Mc.publish(msg)
 
+            msg = position_msg()
+            msg.header.stamp = rospy.get_rostime()
+            cRm, jacob = cv2.Rodrigues(rvec) 
+            Mc = tvec[0][0]
+            Qm = -(cRm.T).dot(Mc)
+            Ml = Payload.Ml(int(id))
+            lRm = Payload.mRl(int(id)).T
+            Ql = Ml + lRm.dot(Qm)
+            msg.position = Ql
+            self.pub_Ql.publish(msg)
 
 def main():
     rospy.init_node('marker_perception', anonymous=True)
