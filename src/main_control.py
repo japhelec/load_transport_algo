@@ -31,16 +31,35 @@ class sWarmup(smach.State):
         rospy.sleep(5.0)
         return 'warmup_finish'
 
-class sUpOpen(smach.State):
+class sFlyupOpen(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['up_open_finish'])
+        smach.State.__init__(self, outcomes=['flyup_open_finish', 'flyup_open_error'])
         print("**************************")
-        rospy.loginfo('Executing state UP_OPEN')
+        rospy.loginfo('Executing state FLYUP_OPEN')
         print("**************************")
 
     def execute(self, userdata):
-        rospy.sleep(5.0)
-        return 'up_open_finish'
+        pubs.util_cmd(0, 0, 0.8, 0)
+
+        rate = rospy.Rate(50) # check image comes in?
+        while not rospy.is_shutdown():
+            if subs.marker_id is not None:
+                return 'flyup_open_finish'
+            rate.sleep()
+        return 'flyup_open_error'
+
+# class sFlyupNav1(smach.State):
+#     def __init__(self):
+#         smach.State.__init__(self, outcomes=['flyup_nav1_finish'])
+#         print("**************************")
+#         rospy.loginfo('Executing state FLYUP_NAV1')
+#         print("**************************")
+
+#     def execute(self, userdata):
+
+#         while 
+
+#         return 'up_open_finish'
 
 class sLand(smach.State):
     def __init__(self):
@@ -70,11 +89,11 @@ class Control():
         self.sm = smach.StateMachine(outcomes=['control_finish'])
         with self.sm:
             smach.StateMachine.add('WARMUP', sWarmup(), 
-                transitions={'warmup_finish':'LAND'})
+                transitions={'warmup_finish':'FLYUP_OPEN'})
+            smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+                transitions={'flyup_open_finish':'LAND', 'flyup_open_error':'control_finish'})
             smach.StateMachine.add('LAND', sLand(), 
-                transitions={'land_finish':'FAKE'})
-            smach.StateMachine.add('FAKE', sFake(), 
-                transitions={'fake_finish':'control_finish'})
+                transitions={'land_finish':'control_finish'})
             # smach.StateMachine.add('UP_OPEN', sUpOpen(), 
             #     transitions={'up_open_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm.execute, daemon = True)
@@ -117,11 +136,11 @@ class Subs():
     def __init__(self):
         self.Q_i = np.array([0,0,0])
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
-        self.marker_id = None
-        self.Ql = np.array([0,0,0])
-        self.cRm = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        self.mRl = np.array([[1,0,0],[0,1,0],[0,0,1]])
         self.bRc = Drone.bRc(tello_ns)
+        self.marker_id = None
+        self.Ql = None
+        self.cRm = None
+        self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
