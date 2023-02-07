@@ -17,27 +17,76 @@ from tf.transformations import quaternion_matrix
 from hardware import Payload, Drone
 
 
-class Control():
+class sWarmup(smach.State):
     def __init__(self):
-        self.tello_ns = "tello_601"
+        smach.State.__init__(self, outcomes=['warmup_finish'])
+        print("**************************")
+        rospy.loginfo('Executing state WARMUP')
+        print("**************************")
 
-        self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % self.tello_ns, Empty, queue_size=1)
-        self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % self.tello_ns, Twist, queue_size=1)
-        self.pub_land = rospy.Publisher('/%s/land' % self.tello_ns, Empty, queue_size=1)
+    def execute(self, userdata):
+        rospy.sleep(5.0)
+        return 'warmup_finish'
 
+class sFake(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fake_finish'])
+        print("**************************")
+        rospy.loginfo('Executing state FAKE')
+        print("**************************")
+
+    def execute(self, userdata):
+        print(subs.cRm)
+        return 'fake_finish'
+
+class Control():
+    def __init__(self):        
+        self.sm = smach.StateMachine(outcomes=['control_finish'])
+        with self.sm:
+            smach.StateMachine.add('WARMUP', sWarmup(), 
+                transitions={'warmup_finish':'FAKE'})
+            smach.StateMachine.add('FAKE', sFake(), 
+                transitions={'fake_finish':'control_finish'})
+        outcome = self.sm.execute()
+
+class Pubs():
+    def __init__(self):
+        # publisher
+        self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
+        self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
+        self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
+
+    def util_cmd(self, x, y, z, yaw):
+        msg = Twist()
+        msg.linear.x = x
+        msg.linear.y = y
+        msg.linear.z = z
+        msg.angular.z = yaw
+        self.pub_cmd_vel.publish(msg)
+
+    def util_motor_on(self):
+        self.pub_motor_on.publish()
+
+    def util_hover(self):
+        self.util_cmd(0,0,0,0)
+
+    def util_land(self):
+        self.pub_land.publish()
+
+class Subs():
+    # subscriber and perception
+    def __init__(self):
         self.Q_i = np.array([0,0,0])
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
         self.marker_id = None
         self.Mc = np.array([0,0,0])
         self.cRm = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        self.bRc = Drone.bRc(tello_ns)
         
-        self.sub_odom = rospy.Subscriber('/%s/odom' % self.tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        self.sub_cRm = rospy.Subscriber('/%s/cRm' % self.tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        self.sub_Mc = rospy.Subscriber('/%s/Mc' % self.tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
+        self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
+        self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
+        self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
 
-        # self.sm
-
-        # rospy.sleep(5.0) # warm up for publishing
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -65,11 +114,14 @@ class Control():
         self.marker_id = data.marker_id
         self.Mc = np.array(data.tvec)
 
-
-def main():
-    rospy.init_node('control', anonymous=True)
-    Control()
-    rospy.spin()
-
+  
 if __name__ == '__main__':
-    main()
+    rospy.init_node('control', anonymous=True)
+
+    # task setting
+    tello_ns = "tello_601"
+    ap_id = 2
+    subs = Subs()
+    pubs = Pubs()    
+
+    Control()
