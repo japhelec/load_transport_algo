@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 # package
+import os
 import rospy
+import yaml
 import smach
 import numpy as np
 import cv2
@@ -43,23 +45,71 @@ class sFlyupOpen(smach.State):
 
         rate = rospy.Rate(50) # check image comes in?
         while not rospy.is_shutdown():
-            if subs.marker_id is not None:
+            if subs.Ql is not None:
                 return 'flyup_open_finish'
             rate.sleep()
         return 'flyup_open_error'
 
-# class sFlyupNav1(smach.State):
-#     def __init__(self):
-#         smach.State.__init__(self, outcomes=['flyup_nav1_finish'])
-#         print("**************************")
-#         rospy.loginfo('Executing state FLYUP_NAV1')
-#         print("**************************")
+class sFlyupControl(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['flyup_control_finish', 'flyup_control_error'])
+        print("**************************")
+        rospy.loginfo('Executing state FLYUP_CONTROL')
+        print("**************************")
+        self.counter = 0
 
-#     def execute(self, userdata):
+    def execute(self, userdata):
+        ##### TO FIX #####
+        desired_Ql = Payload.Pl(6) + np.array([0, -0.1, 0.7])
+        ##### TO FIX #####
 
-#         while 
+        path = os.path.dirname(__file__)
+        filepath = str(path) + '/flyup_pid_gain/%s.yml' % tello_ns
+        with open(filepath, 'r') as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
 
-#         return 'up_open_finish'
+        Kp_x = data['Kp_x']
+        Kp_y = data['Kp_y']
+        Kp_z = data['Kp_z']
+        Kd_x = data['Kd_x']
+        Kd_y = data['Kd_y']
+        Kd_z = data['Kd_z']
+        Ki_x = data['Ki_x']
+        Ki_y = data['Ki_y']
+        Ki_z = data['Ki_z']
+        
+        preErr_x = 0.0
+        preErr_y = 0.0
+        preErr_z = 0.0
+        sumErr_x = 0.0
+        sumErr_y = 0.0
+        sumErr_z = 0.0
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+            err = desired_Ql - subs.Ql
+
+            ###### PID #######
+            sumErr_x = sumErr_x + err[0]
+            sumErr_y = sumErr_y + err[1]
+            sumErr_z = sumErr_z + err[2]
+            dErr_x = err[0] - preErr_x
+            dErr_y = err[1] - preErr_y
+            dErr_z = err[2] - preErr_z
+            ux = Kp_x * err[0] + Ki_x * sumErr_x + Kd_x * dErr_x
+            uy = Kp_y * err[1] + Ki_y * sumErr_y + Kd_y * dErr_y
+            uz = Kp_z * err[2] + Ki_z * sumErr_z + Kd_z * dErr_z
+            u = np.array([ux, uy, uz])
+            preErr_x = err[0]
+            preErr_y = err[1]
+            preErr_z = err[2]
+            ###### PID #######
+            
+            u = subs.bRc.dot(subs.cRm.dot(subs.mRl.dot(u)))
+            pubs.util_cmd(u[0], u[1], u[2], 0)
+            rate.sleep()
+        
+        return 'flyup_control_error'
 
 class sLand(smach.State):
     def __init__(self):
@@ -91,11 +141,11 @@ class Control():
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-                transitions={'flyup_open_finish':'LAND', 'flyup_open_error':'control_finish'})
+                transitions={'flyup_open_finish':'FLYUP_CONTROL', 'flyup_open_error':'control_finish'})
+            smach.StateMachine.add('FLYUP_CONTROL', sFlyupControl(), 
+                transitions={'flyup_control_finish':'LAND', 'flyup_control_error':'control_finish'})
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
-            # smach.StateMachine.add('UP_OPEN', sUpOpen(), 
-            #     transitions={'up_open_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm.execute, daemon = True)
         smach_thread.start()
 
