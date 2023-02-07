@@ -26,26 +26,44 @@ class sWarmup(smach.State):
 
     def execute(self, userdata):
         rospy.sleep(5.0)
+        pubs.util_motor_on()
+        rospy.sleep(5.0)
         return 'warmup_finish'
 
-class sFake(smach.State):
+class sUpOpen(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['fake_finish'])
+        smach.State.__init__(self, outcomes=['up_open_finish'])
         print("**************************")
-        rospy.loginfo('Executing state FAKE')
+        rospy.loginfo('Executing state UP_OPEN')
         print("**************************")
 
     def execute(self, userdata):
-        return 'fake_finish'
+        rospy.sleep(5.0)
+        return 'up_open_finish'
+
+class sLand(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['land_finish'])
+        print("**************************")
+        rospy.loginfo('Executing state LAND')
+        print("**************************")
+
+    def execute(self, userdata):
+        pubs.util_hover()
+        rospy.sleep(0.5)
+        pubs.util_land()
+        return 'land_finish'
 
 class Control():
     def __init__(self):        
         self.sm = smach.StateMachine(outcomes=['control_finish'])
         with self.sm:
             smach.StateMachine.add('WARMUP', sWarmup(), 
-                transitions={'warmup_finish':'FAKE'})
-            smach.StateMachine.add('FAKE', sFake(), 
-                transitions={'fake_finish':'control_finish'})
+                transitions={'warmup_finish':'LAND'})
+            smach.StateMachine.add('LAND', sLand(), 
+                transitions={'land_finish':'control_finish'})
+            # smach.StateMachine.add('UP_OPEN', sUpOpen(), 
+            #     transitions={'up_open_finish':'control_finish'})
         outcome = self.sm.execute()
 
 class Pubs():
@@ -54,6 +72,8 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
+
+        rospy.on_shutdown(self.shutdown_hook)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -71,6 +91,12 @@ class Pubs():
 
     def util_land(self):
         self.pub_land.publish()
+
+    def shutdown_hook(self):
+        print("************in shutdown hook*************")
+        self.util_hover()
+        self.util_wait(0.5)
+        self.util_land()
 
 class Subs():
     # subscriber and perception
