@@ -11,7 +11,7 @@ import threading
 
 # message
 from std_msgs.msg import Empty
-from load_transport.msg import cRm_msg, Mc_msg, position_msg
+from load_transport.msg import cRm_msg, Mc_msg, position_msg, state_machine_msg
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_matrix
@@ -30,6 +30,7 @@ class sWarmup(smach.State):
         rospy.sleep(5.0)
         pubs.util_motor_on()
         rospy.sleep(5.0)
+        pubs.util_smach('WARM_UP', 'FLYUP_OPEN')
         return 'warmup_finish'
 
 class sFlyupOpen(smach.State):
@@ -44,6 +45,7 @@ class sFlyupOpen(smach.State):
         rate = rospy.Rate(50) # check image comes in?
         while not rospy.is_shutdown():
             if subs.Ql is not None:
+                pubs.util_smach('FLYUP_OPEN', 'WP_ASSIGN')
                 return 'flyup_open_finish'
             rate.sleep()
         return 'flyup_open_error'
@@ -64,8 +66,10 @@ class sWpAssign(smach.State):
         if self.counter < self.wp_count:
             userdata.wp_assign_output = self.wps[self.counter]
             self.counter += 1
+            # pubs.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
             return 'wp_assigned'
         else:
+            pubs.util_smach('WP_ASSIGN', 'LAND')
             return 'wp_assign_finish'
 
 class sWpTracking(smach.State):
@@ -104,6 +108,7 @@ class sWpTracking(smach.State):
             err = desired_Ql - subs.Ql
 
             if (err.dot(err) < 0.0025): # distance < 5 cm
+                pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
                 return 'wp_tracking_success'
 
             ###### PID #######
@@ -180,6 +185,7 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
+        self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
 
         rospy.on_shutdown(self.shutdown_hook)
 
@@ -199,6 +205,13 @@ class Pubs():
 
     def util_land(self):
         self.pub_land.publish()
+
+    def util_smach(self, state_before, state_after):
+        msg = state_machine_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.before = state_before
+        msg.after = state_after
+        self.pub_smach.publish(msg)
 
     def shutdown_hook(self):
         print("************in shutdown hook*************")

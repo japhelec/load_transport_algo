@@ -59,6 +59,7 @@ add_message_files(
   rotation_msg.msg
   cRm_msg.msg
   Mc_msg.msg
+  state_machine_msg.msg
 )
 
 ## Generate services in the 'srv' folder
