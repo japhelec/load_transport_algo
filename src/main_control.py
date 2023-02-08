@@ -23,11 +23,10 @@ from hardware import Payload, Drone
 class sWarmup(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['warmup_finish'])
-        print("**************************")
-        rospy.loginfo('Executing state WARMUP')
-        print("**************************")
 
     def execute(self, userdata):
+        rospy.loginfo('Executing state WARMUP')
+
         rospy.sleep(5.0)
         pubs.util_motor_on()
         rospy.sleep(5.0)
@@ -36,11 +35,10 @@ class sWarmup(smach.State):
 class sFlyupOpen(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['flyup_open_finish', 'flyup_open_error'])
-        print("**************************")
-        rospy.loginfo('Executing state FLYUP_OPEN')
-        print("**************************")
 
     def execute(self, userdata):
+        rospy.loginfo('Executing state FLYUP_OPEN')
+
         pubs.util_cmd(0, 0, 0.8, 0)
 
         rate = rospy.Rate(50) # check image comes in?
@@ -50,34 +48,50 @@ class sFlyupOpen(smach.State):
             rate.sleep()
         return 'flyup_open_error'
 
-class sFlyupControl(smach.State):
+class sWpAssign(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['flyup_control_finish', 'flyup_control_error'])
-        print("**************************")
-        rospy.loginfo('Executing state FLYUP_CONTROL')
-        print("**************************")
+        smach.State.__init__(self, outcomes=['wp_assigned', 'wp_assign_finish'], output_keys=['wp_assign_output'])
+        Pl = Payload.Pl(ap_id)
+        wp1 = Pl + np.array([0, -0.2, 0.7])
+        wp2 = Pl + np.array([0, -0.1, 0.9])
+        wp3 = Pl + np.array([0, 0, 1.1])
+        self.wps = [wp1, wp2, wp3]
+        self.wp_count = len(self.wps)
         self.counter = 0
 
     def execute(self, userdata):
-        ##### TO FIX #####
-        desired_Ql = Payload.Pl(6) + np.array([0, -0.1, 0.7])
-        ##### TO FIX #####
+        rospy.loginfo('Executing state WP_ASSIGN')
+        if self.counter < self.wp_count:
+            userdata.wp_assign_output = self.wps[self.counter]
+            self.counter += 1
+            return 'wp_assigned'
+        else:
+            return 'wp_assign_finish'
 
+class sWpTracking(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['wp_tracking_success', 'wp_tracking_error'], input_keys=['wp_tracking_input'])
+
+        # load fly up control pid gain
         path = os.path.dirname(__file__)
         filepath = str(path) + '/flyup_pid_gain/%s.yml' % tello_ns
         with open(filepath, 'r') as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
 
-        Kp_x = data['Kp_x']
-        Kp_y = data['Kp_y']
-        Kp_z = data['Kp_z']
-        Kd_x = data['Kd_x']
-        Kd_y = data['Kd_y']
-        Kd_z = data['Kd_z']
-        Ki_x = data['Ki_x']
-        Ki_y = data['Ki_y']
-        Ki_z = data['Ki_z']
-        
+        self.Kp_x = data['Kp_x']
+        self.Kp_y = data['Kp_y']
+        self.Kp_z = data['Kp_z']
+        self.Kd_x = data['Kd_x']
+        self.Kd_y = data['Kd_y']
+        self.Kd_z = data['Kd_z']
+        self.Ki_x = data['Ki_x']
+        self.Ki_y = data['Ki_y']
+        self.Ki_z = data['Ki_z']
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state WP_TRACKING')  
+
+        desired_Ql = userdata.wp_tracking_input
         preErr_x = 0.0
         preErr_y = 0.0
         preErr_z = 0.0
@@ -89,6 +103,9 @@ class sFlyupControl(smach.State):
         while not rospy.is_shutdown():
             err = desired_Ql - subs.Ql
 
+            if (err.dot(err) < 0.0025): # distance < 5 cm
+                return 'wp_tracking_success'
+
             ###### PID #######
             sumErr_x = sumErr_x + err[0]
             sumErr_y = sumErr_y + err[1]
@@ -96,9 +113,9 @@ class sFlyupControl(smach.State):
             dErr_x = err[0] - preErr_x
             dErr_y = err[1] - preErr_y
             dErr_z = err[2] - preErr_z
-            ux = Kp_x * err[0] + Ki_x * sumErr_x + Kd_x * dErr_x
-            uy = Kp_y * err[1] + Ki_y * sumErr_y + Kd_y * dErr_y
-            uz = Kp_z * err[2] + Ki_z * sumErr_z + Kd_z * dErr_z
+            ux = self.Kp_x * err[0] + self.Ki_x * sumErr_x + self.Kd_x * dErr_x
+            uy = self.Kp_y * err[1] + self.Ki_y * sumErr_y + self.Kd_y * dErr_y
+            uz = self.Kp_z * err[2] + self.Ki_z * sumErr_z + self.Kd_z * dErr_z
             u = np.array([ux, uy, uz])
             preErr_x = err[0]
             preErr_y = err[1]
@@ -109,16 +126,15 @@ class sFlyupControl(smach.State):
             pubs.util_cmd(u[0], u[1], u[2], 0)
             rate.sleep()
         
-        return 'flyup_control_error'
+        return 'wp_tracking_error'
 
 class sLand(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['land_finish'])
-        print("**************************")
-        rospy.loginfo('Executing state LAND')
-        print("**************************")
 
     def execute(self, userdata):
+        rospy.loginfo('Executing state LAND')
+
         pubs.util_hover()
         rospy.sleep(0.5)
         pubs.util_land()
@@ -127,26 +143,35 @@ class sLand(smach.State):
 class sFake(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['fake_finish'])
-        print("**************************")
-        rospy.loginfo('Executing state FAKE')
-        print("**************************")
 
     def execute(self, userdata):
+        rospy.loginfo('Executing state FAKE')
         return 'fake_finish'
 
 class Control():
     def __init__(self):        
-        self.sm = smach.StateMachine(outcomes=['control_finish'])
-        with self.sm:
+        self.sm_top = smach.StateMachine(outcomes=['control_finish'])
+        with self.sm_top:
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'FLYUP_CONTROL', 'flyup_open_error':'control_finish'})
-            smach.StateMachine.add('FLYUP_CONTROL', sFlyupControl(), 
+
+            self.sm_flyup_control = smach.StateMachine(outcomes=['flyup_control_finish', 'flyup_control_error'])
+            self.sm_flyup_control.userdata.desired_Ql = None
+            with self.sm_flyup_control:
+                smach.StateMachine.add('WP_ASSIGN', sWpAssign(), 
+                    transitions={'wp_assigned':'WP_TRACK', 'wp_assign_finish':'flyup_control_finish'},
+                    remapping={'wp_assign_output':'desired_Ql'})
+                smach.StateMachine.add('WP_TRACK', sWpTracking(), 
+                    transitions={'wp_tracking_success':'WP_ASSIGN', 'wp_tracking_error': 'flyup_control_error'},
+                    remapping={'wp_tracking_input':'desired_Ql'})
+
+            smach.StateMachine.add('FLYUP_CONTROL', self.sm_flyup_control, 
                 transitions={'flyup_control_finish':'LAND', 'flyup_control_error':'control_finish'})
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
-        smach_thread = threading.Thread(target=self.sm.execute, daemon = True)
+        smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
         smach_thread.start()
 
 class Pubs():
@@ -197,7 +222,6 @@ class Subs():
         # self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
-
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
         orien = odom.pose.pose.orientation
@@ -229,7 +253,7 @@ if __name__ == '__main__':
 
     # task setting
     tello_ns = "tello_601"
-    ap_id = 2
+    ap_id = 6
     subs = Subs()
     pubs = Pubs()    
     
