@@ -19,6 +19,13 @@ filepath = str(path) + '/camera_calib/%s.yml' % "tello_E"
 with open(filepath, 'r') as f:
     drone_E_hd = yaml.load(f, Loader=yaml.FullLoader)
 
+filepath = str(path) + '/camera_calib/%s.yml' % "tello_A"
+with open(filepath, 'r') as f:
+    drone_A_hd = yaml.load(f, Loader=yaml.FullLoader)
+
+filepath = str(path) + '/camera_calib/%s.yml' % "tello_D"
+with open(filepath, 'r') as f:
+    drone_D_hd = yaml.load(f, Loader=yaml.FullLoader)
 
 #############################################
 #coordinate frame
@@ -43,6 +50,10 @@ class Drone:
             return np.array(drone_C_hd['R'])
         elif drone_id == "tello_E":
             return np.array(drone_E_hd['R'])
+        elif drone_id == "tello_A":
+            return np.array(drone_A_hd['R'])
+        elif drone_id == "tello_D":
+            return np.array(drone_D_hd['R'])    
             
 
 class Payload:

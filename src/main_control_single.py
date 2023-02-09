@@ -54,10 +54,18 @@ class sWpAssign(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['wp_assigned', 'wp_assign_finish'], output_keys=['wp_assign_output'])
         Pl = Payload.Pl(ap_id)
-        wp1 = Pl + np.array([0, -0.2, 0.7])
-        wp2 = Pl + np.array([0, -0.1, 0.9])
-        wp3 = Pl + np.array([0, 0, 1.1])
+
+        if ap_id == 6:
+            wp1 = Pl + np.array([0, -0.2, 0.7])
+            wp2 = Pl + np.array([0, -0.1, 0.9])
+            wp3 = Pl + np.array([0, 0, 1.1])
+        elif ap_id == 0:
+            wp1 = Pl + np.array([0, 0.2, 0.7])
+            wp2 = Pl + np.array([0, 0.1, 0.9])
+            wp3 = Pl + np.array([0, 0, 1.1])
+        
         self.wps = [wp1, wp2, wp3]
+        # self.wps = [wp1]
         self.wp_count = len(self.wps)
         self.counter = 0
 
@@ -66,7 +74,7 @@ class sWpAssign(smach.State):
         if self.counter < self.wp_count:
             userdata.wp_assign_output = self.wps[self.counter]
             self.counter += 1
-            # pubs.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
+            pubs.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
             return 'wp_assigned'
         else:
             pubs.util_smach('WP_ASSIGN', 'LAND')
@@ -108,7 +116,7 @@ class sWpTracking(smach.State):
             err = desired_Ql - subs.Ql
 
             if (err.dot(err) < 0.0025): # distance < 5 cm
-                pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
+                # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
                 return 'wp_tracking_success'
 
             ###### PID #######
@@ -265,8 +273,8 @@ if __name__ == '__main__':
     rospy.init_node('control', anonymous=True)
 
     # task setting
-    tello_ns = "tello_601"
-    ap_id = 6
+    tello_ns = rospy.get_param('~tello_ns', "tello_601")
+    ap_id = int(rospy.get_param('~ap_id', "tello_601"))
     subs = Subs()
     pubs = Pubs()    
     
