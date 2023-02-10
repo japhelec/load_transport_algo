@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from hardware import Drone
+from hardware import Payload
 
 
-print(Drone.bRc("tello_601"))
+print(Payload.Pl(6))
