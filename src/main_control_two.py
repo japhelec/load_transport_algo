@@ -226,7 +226,6 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
-        self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
