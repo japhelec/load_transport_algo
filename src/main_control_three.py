@@ -92,7 +92,7 @@ class sWpAssign(smach.State):
             pub_sm.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
             return 'wp_assigned'
         else:
-            pub_sm.util_smach('WP_ASSIGN', 'LAND')
+            pub_sm.util_smach('WP_ASSIGN', 'LIFT')
             return 'wp_assign_finish'
 
 class sWpTracking(smach.State):
@@ -145,6 +145,26 @@ class sWpTracking(smach.State):
             rate.sleep()
         
         return 'wp_tracking_error'
+
+class sLift(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['lift_finish', 'lift_error'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state LIFT')
+
+        pub1.util_cmd(0, 0, 1.5, 0)
+        pub2.util_cmd(0, 0, 1.5, 0)
+        pub3.util_cmd(0, 0, 1.5, 0)
+
+        rospy.sleep(2)
+
+        if rospy.is_shutdown():
+            return 'lift_error'
+        else:
+            pubs.util_smach('LIFT', 'STABILIZATION')
+            return 'lift_finish'
+
 
 class sLand(smach.State):
     def __init__(self):
