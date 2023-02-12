@@ -19,6 +19,8 @@ from tf.transformations import quaternion_matrix
 # Hardward Config
 from hardware import Payload, Drone
 
+# util
+from util_PID_control import PID
 
 class sWarmup(smach.State):
     def __init__(self):
@@ -61,13 +63,13 @@ class sWpAssign(smach.State):
         wp1 = Pl1 + np.array([0, 0.2, 0.7])
         wp2 = Pl1 + np.array([0, 0.1, 0.9])
         wp3 = Pl1 + np.array([0, 0, 1.1])
-        # self.wps1 = [wp3]
-        self.wps1 = [wp1, wp2, wp3]
+        self.wps1 = [wp3]
+        # self.wps1 = [wp1, wp2, wp3]
         wp1 = Pl2 + np.array([0, -0.2, 0.7])
         wp2 = Pl2 + np.array([0, -0.1, 0.9])
         wp3 = Pl2 + np.array([0, 0, 1.1])
-        # self.wps2 = [wp3]
-        self.wps2 = [wp1, wp2, wp3]
+        self.wps2 = [wp3]
+        # self.wps2 = [wp1, wp2, wp3]
         
         self.wp_count = len(self.wps1)
         self.counter = 0
@@ -94,77 +96,32 @@ class sWpTracking(smach.State):
         with open(filepath, 'r') as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.Kp_x = data['Kp_x']
-        self.Kp_y = data['Kp_y']
-        self.Kp_z = data['Kp_z']
-        self.Kd_x = data['Kd_x']
-        self.Kd_y = data['Kd_y']
-        self.Kd_z = data['Kd_z']
-        self.Ki_x = data['Ki_x']
-        self.Ki_y = data['Ki_y']
-        self.Ki_z = data['Ki_z']
+        self.pid1 = PID(
+            data['Kp_x'], data['Kp_y'], data['Kp_z'],
+            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
+            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+
+        self.pid2 = PID(
+            data['Kp_x'], data['Kp_y'], data['Kp_z'],
+            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
+            data['Kd_x'], data['Kd_y'], data['Kd_z'])
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state WP_TRACKING')  
+        rospy.loginfo('Executing state WP_TRACKING')          
+        self.pid1.setTarget(userdata.wp_tracking_input1, 0.1)
+        self.pid2.setTarget(userdata.wp_tracking_input2, 0.1)
 
-        desired_Ql1 = userdata.wp_tracking_input1
-        desired_Ql2 = userdata.wp_tracking_input2
-        preErr1_x = 0.0
-        preErr1_y = 0.0
-        preErr1_z = 0.0
-        sumErr1_x = 0.0
-        sumErr1_y = 0.0
-        sumErr1_z = 0.0
-        preErr2_x = 0.0
-        preErr2_y = 0.0
-        preErr2_z = 0.0
-        sumErr2_x = 0.0
-        sumErr2_y = 0.0
-        sumErr2_z = 0.0
-        
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
-            err1 = desired_Ql1 - sub1.Ql
-            err2 = desired_Ql2 - sub2.Ql
-
-            if (err1.dot(err1) < 0.01) and (err2.dot(err2) < 0.01): # distance < 5 cm
+            if self.pid1.check(sub1.Ql) and self.pid2.check(sub2.Ql): 
                 # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
                 return 'wp_tracking_success'
-
-            ###### PID for agent 1#######
-            sumErr1_x = sumErr1_x + err1[0]
-            sumErr1_y = sumErr1_y + err1[1]
-            sumErr1_z = sumErr1_z + err1[2]
-            dErr1_x = err1[0] - preErr1_x
-            dErr1_y = err1[1] - preErr1_y
-            dErr1_z = err1[2] - preErr1_z
-            ux = self.Kp_x * err1[0] + self.Ki_x * sumErr1_x + self.Kd_x * dErr1_x
-            uy = self.Kp_y * err1[1] + self.Ki_y * sumErr1_y + self.Kd_y * dErr1_y
-            uz = self.Kp_z * err1[2] + self.Ki_z * sumErr1_z + self.Kd_z * dErr1_z
-            u1 = np.array([ux, uy, uz])
-            preErr1_x = err1[0]
-            preErr1_y = err1[1]
-            preErr1_z = err1[2]
-            ###### PID #######
-
-            ###### PID for agent 2#######
-            sumErr2_x = sumErr2_x + err2[0]
-            sumErr2_y = sumErr2_y + err2[1]
-            sumErr2_z = sumErr2_z + err2[2]
-            dErr2_x = err2[0] - preErr2_x
-            dErr2_y = err2[1] - preErr2_y
-            dErr2_z = err2[2] - preErr2_z
-            ux = self.Kp_x * err2[0] + self.Ki_x * sumErr2_x + self.Kd_x * dErr2_x
-            uy = self.Kp_y * err2[1] + self.Ki_y * sumErr2_y + self.Kd_y * dErr2_y
-            uz = self.Kp_z * err2[2] + self.Ki_z * sumErr2_z + self.Kd_z * dErr2_z
-            u2 = np.array([ux, uy, uz])
-            preErr2_x = err2[0]
-            preErr2_y = err2[1]
-            preErr2_z = err2[2]
-            ###### PID #######
             
+            u1 = self.pid1.update(sub1.Ql)
+            u2 = self.pid2.update(sub2.Ql)
             u1 = sub1.bRc.dot(sub1.cRm.dot(sub1.mRl.dot(u1)))
             u2 = sub2.bRc.dot(sub2.cRm.dot(sub2.mRl.dot(u2)))
+
             pub1.util_cmd(u1[0], u1[1], u1[2], 0)
             pub2.util_cmd(u2[0], u2[1], u2[2], 0)
             rate.sleep()
