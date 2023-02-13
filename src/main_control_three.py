@@ -162,9 +162,53 @@ class sLift(smach.State):
         if rospy.is_shutdown():
             return 'lift_error'
         else:
+            pub1.util_hover()
+            pub2.util_hover()
+            pub3.util_hover()
             pubs.util_smach('LIFT', 'STABILIZATION')
             return 'lift_finish'
 
+class sStabilization(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['stabilization_success', 'stabilization_error'])
+
+        # load fly up control pid gain
+        path = os.path.dirname(__file__)
+        filepath = str(path) + '/flyup_pid_gain/%s.yml' % tello1_ns
+        with open(filepath, 'r') as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
+
+        self.pid2 = PID(
+            data['Kp_x'], data['Kp_y'], data['Kp_z'],
+            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
+            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+
+        self.pid3 = PID(
+            data['Kp_x'], data['Kp_y'], data['Kp_z'],
+            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
+            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state STABILIZATION')          
+        self.pid2.setTarget(userdata.wp_tracking_input2, 0.1)
+        self.pid3.setTarget(userdata.wp_tracking_input3, 0.1)
+
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+            if self.pid2.check(sub2.Ql) and self.pid3.check(sub3.Ql): 
+                # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
+                return 'stabilization_success'
+            
+            u2 = self.pid2.update(sub2.Ql)
+            u3 = self.pid3.update(sub3.Ql)
+            u2 = sub2.bRc.dot(sub2.cRm.dot(sub2.mRl.dot(u2)))
+            u3 = sub3.bRc.dot(sub3.cRm.dot(sub3.mRl.dot(u3)))
+
+            pub2.util_cmd(u2[0], u2[1], u2[2], 0)
+            pub3.util_cmd(u3[0], u3[1], u3[2], 0)
+            rate.sleep()
+        
+        return 'wp_tracking_error'
 
 class sLand(smach.State):
     def __init__(self):
@@ -260,12 +304,13 @@ class Subs():
         self.bRc = Drone.bRc(tello_ns)
         self.marker_id = None
         self.Ql = None
+        self.Mc = None
         self.cRm = None
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        # self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
+        self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):
@@ -290,6 +335,9 @@ class Subs():
         cRm, jacob = cv2.Rodrigues(rvec) 
         self.cRm = cRm
         self.mRl = Payload.mRl(data.marker_id)
+
+    def cb_Mc(self, data):        
+        self.Mc = np.array(data.tvec)
 
     def cb_Ql(self, data):
         self.Ql = np.array(data.position)

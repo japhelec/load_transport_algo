@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 from cv2 import aruco
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage
 from load_transport.msg import cRm_msg, Mc_msg, position_msg
 from hardware import Marker, Payload
 
@@ -20,14 +20,18 @@ class Perception():
         [  0.,           0.,           1.        ]])
 
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/image_raw" % self.tello_ns, Image, self.cb_marker_perception, queue_size = 1)
+        self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb_marker_perception, queue_size = 1)
         self.pub_cRm = rospy.Publisher('/%s/cRm' % self.tello_ns, cRm_msg, queue_size=1)
         self.pub_Mc = rospy.Publisher('/%s/Mc' % self.tello_ns, Mc_msg, queue_size=1)
-        self.pub_Ql = rospy.Publisher('/%s/Ql' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_Ql_raw = rospy.Publisher('/%s/Ql/raw' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_Ql_filtered = rospy.Publisher('/%s/Ql/filtered' % self.tello_ns, position_msg, queue_size=1)
+
+        self.preQl = None
+        self.preT = None
 
     def cb_marker_perception(self, img_raw):
         ## cvBridge
-        frame = self.br.imgmsg_to_cv2(img_raw)
+        frame = self.br.compressed_imgmsg_to_cv2(img_raw)
 
         ## gray
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -43,15 +47,7 @@ class Perception():
             id = ids[0][0]
             corner = corners[0]
             
-            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)
-            # print(rvec)
-            # c0m0_c = tvec[0][0] 
-            # cRm, jacob = cv2.Rodrigues(rvec) 
-
-            # P_m = self.getP_m(id)
-            # P_c = c0m0_c + cRm.dot(P_m)
-            # # P_b = self.bRc.dot(P_c) + np.array([0,0.05,0])
-            # P_b = self.bRc.dot(P_c)
+            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)          
 
             msg = cRm_msg()
             msg.header.stamp = rospy.get_rostime()
@@ -74,7 +70,21 @@ class Perception():
             lRm = Payload.mRl(int(id)).T
             Ql = Ml + lRm.dot(Qm)
             msg.position = Ql
-            self.pub_Ql.publish(msg)
+            self.pub_Ql_raw.publish(msg)
+
+            # filter
+            curT = img_raw.header.stamp.to_sec()
+            if self.preQl is not None:
+                displacement = Ql - self.preQl
+                delta_t = curT - self.preT
+                vel = displacement / delta_t
+
+                if vel.dot(vel) > 1:
+                    return
+
+            self.pub_Ql_filtered.publish(msg)
+            self.preT = curT
+            self.preQl = Ql
 
 def main():
     rospy.init_node('marker_perception', anonymous=True)
