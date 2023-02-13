@@ -122,6 +122,8 @@ class sWpTracking(smach.State):
             u1 = sub1.bRc.dot(sub1.cRm.dot(sub1.mRl.dot(u1)))
             u2 = sub2.bRc.dot(sub2.cRm.dot(sub2.mRl.dot(u2)))
 
+            pub1.util_Ql_err(self.pid1.err)
+            pub2.util_Ql_err(self.pid2.err)
             pub1.util_cmd(u1[0], u1[1], u1[2], 0)
             pub2.util_cmd(u2[0], u2[1], u2[2], 0)
             rate.sleep()
@@ -183,6 +185,7 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
+        self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % self.tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -200,6 +203,13 @@ class Pubs():
 
     def util_land(self):
         self.pub_land.publish()
+
+    def util_Ql_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = err
+        self.pub_Ql_error.publish(msg)
+
 
 class PubSm():
     def __init__(self):
