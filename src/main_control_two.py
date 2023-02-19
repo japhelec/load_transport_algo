@@ -63,13 +63,13 @@ class sWpAssign(smach.State):
         wp1 = Pl1 + np.array([0, 0.2, 0.7])
         wp2 = Pl1 + np.array([0, 0.1, 0.9])
         wp3 = Pl1 + np.array([0, 0, 1.1])
-        self.wps1 = [wp3]
-        # self.wps1 = [wp1, wp2, wp3]
+        # self.wps1 = [wp3]
+        self.wps1 = [wp1, wp2, wp3]
         wp1 = Pl2 + np.array([0, -0.2, 0.7])
         wp2 = Pl2 + np.array([0, -0.1, 0.9])
         wp3 = Pl2 + np.array([0, 0, 1.1])
-        self.wps2 = [wp3]
-        # self.wps2 = [wp1, wp2, wp3]
+        # self.wps2 = [wp3]
+        self.wps2 = [wp1, wp2, wp3]
         
         self.wp_count = len(self.wps1)
         self.counter = 0
@@ -185,7 +185,7 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
-        self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -233,8 +233,7 @@ class Subs():
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        # self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
+        self.sub_cRm = rospy.Subscriber('/%s/cRm/filtered' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/filtered' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):

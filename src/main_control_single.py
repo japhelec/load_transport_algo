@@ -64,8 +64,8 @@ class sWpAssign(smach.State):
             wp2 = Pl + np.array([0, 0.1, 0.9])
             wp3 = Pl + np.array([0, 0, 1.1])
         
-        self.wps = [wp1, wp2, wp3]
-        # self.wps = [wp1]
+        # self.wps = [wp1, wp2, wp3]
+        self.wps = [wp3]
         self.wp_count = len(self.wps)
         self.counter = 0
 
@@ -115,7 +115,7 @@ class sWpTracking(smach.State):
         while not rospy.is_shutdown():
             err = desired_Ql - subs.Ql
 
-            if (err.dot(err) < 0.0025): # distance < 5 cm
+            if (err.dot(err) < 0.0064): # distance < 5 cm
                 # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
                 return 'wp_tracking_success'
 
@@ -239,9 +239,10 @@ class Subs():
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        # self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
-        self.sub_Ql = rospy.Subscriber('/%s/Ql' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
+        # self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
+        self.sub_cRm = rospy.Subscriber('/%s/cRm/filtered' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
+        # self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
+        self.sub_Ql = rospy.Subscriber('/%s/Ql/filtered' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position

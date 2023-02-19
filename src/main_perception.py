@@ -21,8 +21,10 @@ class Perception():
 
         self.br = CvBridge()
         self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb_marker_perception, queue_size = 1)
-        self.pub_cRm = rospy.Publisher('/%s/cRm' % self.tello_ns, cRm_msg, queue_size=1)
-        self.pub_Mc = rospy.Publisher('/%s/Mc' % self.tello_ns, Mc_msg, queue_size=1)
+        self.pub_cRm_raw = rospy.Publisher('/%s/cRm/raw' % self.tello_ns, cRm_msg, queue_size=1)
+        self.pub_cRm_filtered = rospy.Publisher('/%s/cRm/filtered' % self.tello_ns, cRm_msg, queue_size=1)
+        self.pub_Mc_raw = rospy.Publisher('/%s/Mc/raw' % self.tello_ns, Mc_msg, queue_size=1)
+        self.pub_Mc_filtered = rospy.Publisher('/%s/Mc/filtered' % self.tello_ns, Mc_msg, queue_size=1)
         self.pub_Ql_raw = rospy.Publisher('/%s/Ql/raw' % self.tello_ns, position_msg, queue_size=1)
         self.pub_Ql_filtered = rospy.Publisher('/%s/Ql/filtered' % self.tello_ns, position_msg, queue_size=1)
 
@@ -49,28 +51,28 @@ class Perception():
             
             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)          
 
-            msg = cRm_msg()
-            msg.header.stamp = rospy.get_rostime()
-            msg.marker_id = int(id)
-            msg.rvec = rvec[0][0]
-            self.pub_cRm.publish(msg)
+            msg_cRm = cRm_msg()
+            msg_cRm.header.stamp = rospy.get_rostime()
+            msg_cRm.marker_id = int(id)
+            msg_cRm.rvec = rvec[0][0]
+            self.pub_cRm_raw.publish(msg_cRm)
 
-            msg = Mc_msg()
-            msg.header.stamp = rospy.get_rostime()
-            msg.marker_id = int(id)
-            msg.tvec = tvec[0][0]
-            self.pub_Mc.publish(msg)
+            msg_Mc = Mc_msg()
+            msg_Mc.header.stamp = rospy.get_rostime()
+            msg_Mc.marker_id = int(id)
+            msg_Mc.tvec = tvec[0][0]
+            self.pub_Mc_raw.publish(msg_Mc)
 
-            msg = position_msg()
-            msg.header.stamp = rospy.get_rostime()
+            msg_Ql = position_msg()
+            msg_Ql.header.stamp = rospy.get_rostime()
             cRm, jacob = cv2.Rodrigues(rvec) 
             Mc = tvec[0][0]
             Qm = -(cRm.T).dot(Mc)
             Ml = Payload.Ml(int(id))
             lRm = Payload.mRl(int(id)).T
             Ql = Ml + lRm.dot(Qm)
-            msg.position = Ql
-            self.pub_Ql_raw.publish(msg)
+            msg_Ql.position = Ql
+            self.pub_Ql_raw.publish(msg_Ql)
 
             # filter
             curT = img_raw.header.stamp.to_sec()
@@ -81,8 +83,10 @@ class Perception():
 
                 if vel.dot(vel) > 1:
                     return
-
-            self.pub_Ql_filtered.publish(msg)
+            
+            self.pub_Mc_filtered.publish(msg_Mc)
+            self.pub_cRm_filtered.publish(msg_cRm)
+            self.pub_Ql_filtered.publish(msg_Ql)
             self.preT = curT
             self.preQl = Ql
 
