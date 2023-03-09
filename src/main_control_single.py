@@ -136,6 +136,7 @@ class sWpTracking(smach.State):
             ###### PID #######
             
             u = subs.bRc.dot(subs.cRm.dot(subs.mRl.dot(u)))
+            pubs.util_Ql_err(err)
             pubs.util_cmd(u[0], u[1], u[2], 0)
             rate.sleep()
         
@@ -194,6 +195,7 @@ class Pubs():
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
+        self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
 
         rospy.on_shutdown(self.shutdown_hook)
 
@@ -213,6 +215,12 @@ class Pubs():
 
     def util_land(self):
         self.pub_land.publish()
+
+    def util_Ql_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = err
+        self.pub_Ql_error.publish(msg)
 
     def util_smach(self, state_before, state_after):
         msg = state_machine_msg()
@@ -239,9 +247,7 @@ class Subs():
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        # self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm/filtered' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        # self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/filtered' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):
