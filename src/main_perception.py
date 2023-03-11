@@ -7,11 +7,12 @@ from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
 from load_transport.msg import cRm_msg, Mc_msg, position_msg
-from hardware import Marker, Payload
+from hardware import Marker, Payload, Drone
 
 class Perception():
     def __init__(self):      
         self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
+        self.id = Drone.ns2id(self.tello_ns)
 
         # [ camera ]
         self.dist = np.array(([[-0.016272, 0.093492, 0.000093, 0.002999, 0]]))
@@ -45,21 +46,26 @@ class Perception():
         
         ## estimation
         if ids is not None:
-            # any marker is ok
-            id = ids[0][0]
-            corner = corners[0]
+            # check marker in FOV
+            idIndex = np.where(ids == self.id)
+            if len(idIndex[0]) == 0:
+                return
+            idIndex = idIndex[0][0]
+
+
+            corner = corners[idIndex]
             
             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)          
 
             msg_cRm = cRm_msg()
             msg_cRm.header.stamp = rospy.get_rostime()
-            msg_cRm.marker_id = int(id)
+            msg_cRm.marker_id = int(self.id)
             msg_cRm.rvec = rvec[0][0]
             self.pub_cRm_raw.publish(msg_cRm)
 
             msg_Mc = Mc_msg()
             msg_Mc.header.stamp = rospy.get_rostime()
-            msg_Mc.marker_id = int(id)
+            msg_Mc.marker_id = int(self.id)
             msg_Mc.tvec = tvec[0][0]
             self.pub_Mc_raw.publish(msg_Mc)
 
@@ -68,9 +74,8 @@ class Perception():
             cRm, jacob = cv2.Rodrigues(rvec) 
             Mc = tvec[0][0]
             Qm = -(cRm.T).dot(Mc)
-            Ml = Payload.Ml(int(id))
-            lRm = Payload.mRl(int(id)).T
-            Ql = Ml + lRm.dot(Qm)
+            Ml = Payload.Ml(int(self.id))
+            Ql = Ml + Qm
             msg_Ql.position = Ql
             self.pub_Ql_raw.publish(msg_Ql)
 

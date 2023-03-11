@@ -55,14 +55,9 @@ class sWpAssign(smach.State):
         smach.State.__init__(self, outcomes=['wp_assigned', 'wp_assign_finish'], output_keys=['wp_assign_output'])
         Pl = Payload.Pl(ap_id)
 
-        if ap_id == 6:
-            wp1 = Pl + np.array([0, -0.2, 0.7])
-            wp2 = Pl + np.array([0, -0.1, 0.9])
-            wp3 = Pl + np.array([0, 0, 1.1])
-        elif ap_id == 0:
-            wp1 = Pl + np.array([0, 0.2, 0.7])
-            wp2 = Pl + np.array([0, 0.1, 0.9])
-            wp3 = Pl + np.array([0, 0, 1.1])
+        wp1 = Pl + np.array([0, 0.2, 0.7])
+        wp2 = Pl + np.array([0, 0.1, 0.9])
+        wp3 = Pl + np.array([0, 0, 1.1])
         
         # self.wps = [wp1, wp2, wp3]
         self.wps = [wp3]
@@ -135,7 +130,7 @@ class sWpTracking(smach.State):
             preErr_z = err[2]
             ###### PID #######
             
-            u = subs.bRc.dot(subs.cRm.dot(subs.mRl.dot(u)))
+            u = subs.bRc.dot(subs.cRm.dot(u))
             pubs.util_Ql_err(err)
             pubs.util_cmd(u[0], u[1], u[2], 0)
             rate.sleep()
@@ -247,8 +242,8 @@ class Subs():
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        self.sub_cRm = rospy.Subscriber('/%s/cRm/filtered' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        self.sub_Ql = rospy.Subscriber('/%s/Ql/filtered' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
+        self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
+        self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -281,7 +276,7 @@ if __name__ == '__main__':
 
     # task setting
     tello_ns = rospy.get_param('~tello_ns', "tello_601")
-    ap_id = int(rospy.get_param('~ap_id', "tello_601"))
+    ap_id = Drone.ns2id(tello_ns)
     subs = Subs()
     pubs = Pubs()    
     

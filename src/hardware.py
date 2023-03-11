@@ -39,7 +39,7 @@ with open(filepath, 'r') as f:
 
 
 class Marker:
-    length = 0.05 #m
+    length = 0.095 #m
 
 class Drone:
     @staticmethod
@@ -53,28 +53,27 @@ class Drone:
         elif drone_id == "tello_A":
             return np.array(drone_A_hd['R'])
         elif drone_id == "tello_D":
-            return np.array(drone_D_hd['R'])    
+            return np.array(drone_D_hd['R'])  
+
+    @staticmethod
+    def ns2id(tello_ns):
+        if tello_ns == "tello_A":
+            return 1
+        elif tello_ns == "tello_C":
+            return 2
+        elif tello_ns == "tello_D":
+            return 0
             
 
 class Payload:
     @staticmethod
     def Ml(marker_id):
         if marker_id == 0:
-            return np.array([0.3312, 0.1713, 0]) #m
+            return np.array([0, -0.155, 0]) #m
         elif marker_id == 1:
-            return np.array([-0.2977, 0.1691, 0]) #m
+            return np.array([-0.271, 0.145, 0]) #m
         elif marker_id == 2:
-            return np.array([-0.2984, -0.1795, 0]) #m
-        elif marker_id == 3:
-            return np.array([0.3217, -0.1761, 0]) #m
-        elif marker_id == 4:
-            return np.array([0, 0.1784, 0]) #m
-        elif marker_id == 5:
-            return np.array([-0.3063, -0.0017, 0]) #m
-        elif marker_id == 6:
-            return np.array([0, -0.1784, 0]) #m
-        elif marker_id == 7:
-            return np.array([0.3196, -0.0056, 0]) #m
+            return np.array([0.271, 0.155, 0]) #m
 
     @staticmethod
     def mRl(marker_id):
@@ -86,25 +85,10 @@ class Payload:
     def Pl(ap_id):
         if ap_id == 0:
             Ml = Payload.Ml(0)
-            return Ml + np.array([Marker.length/2, Marker.length/2, 0]) #m
+            return Ml + np.array([0, -Marker.length/2, 0]) #m
         elif ap_id == 1:
-            Ml = Payload.Ml(4)
-            return Ml + np.array([0, Marker.length/2, 0]) #m
-        elif ap_id == 2:
             Ml = Payload.Ml(1)
             return Ml + np.array([-Marker.length/2, Marker.length/2, 0]) #m
-        elif ap_id == 3:
-            Ml = Payload.Ml(5)
-            return Ml + np.array([-Marker.length/2, 0, 0]) #m
-        elif ap_id == 4:
+        elif ap_id == 2:
             Ml = Payload.Ml(2)
-            return Ml + np.array([-Marker.length/2, -Marker.length/2, 0]) #m
-        elif ap_id == 5:
-            Ml = Payload.Ml(6)
-            return Ml + np.array([0, -Marker.length/2, 0]) #m
-        elif ap_id == 6:
-            Ml = Payload.Ml(3)
-            return Ml + np.array([Marker.length/2, -Marker.length/2, 0]) #m
-        elif ap_id == 7:
-            Ml = Payload.Ml(7)
-            return Ml + np.array([Marker.length/2, 0, 0]) #m
+            return Ml + np.array([Marker.length/2, Marker.length/2, 0]) #m
