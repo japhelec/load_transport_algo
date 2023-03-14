@@ -34,15 +34,15 @@ class sWarmup(smach.State):
         pub2.util_motor_on()
         pub3.util_motor_on()
         rospy.sleep(5.0)
-        pub_sm.util_smach('WARM_UP', 'FLYUP_OPEN')
+        pub_sm.util_smach('WARM_UP', 'FLYUP_UNTIL')
         return 'warmup_finish'
 
-class sFlyupOpen(smach.State):
+class sFlyupUntil(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['flyup_open_finish', 'flyup_open_error'])
+        smach.State.__init__(self, outcomes=['flyup_until_finish', 'flyup_until_error'])
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state FLYUP_OPEN')
+        rospy.loginfo('Executing state FLYUP_UNTIL')
 
         pub1.util_cmd(0, 0, 0.8, 0)
         pub2.util_cmd(0, 0, 0.8, 0)
@@ -51,10 +51,10 @@ class sFlyupOpen(smach.State):
         rate = rospy.Rate(50) # check image comes in?
         while not rospy.is_shutdown():
             if (sub1.Ql is not None) and (sub2.Ql is not None) and (sub3.Ql is not None):
-                pub_sm.util_smach('FLYUP_OPEN', 'WP_ASSIGN')
-                return 'flyup_open_finish'
+                pub_sm.util_smach('FLYUP_UNTIL', 'WP_ASSIGN')
+                return 'flyup_until_finish'
             rate.sleep()
-        return 'flyup_open_error'
+        return 'flyup_until_error'
 
 class sWpAssign(smach.State):
     def __init__(self):
@@ -175,9 +175,9 @@ class Control():
         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
         with self.sm_top:
             smach.StateMachine.add('WARMUP', sWarmup(), 
-                transitions={'warmup_finish':'FLYUP_OPEN'})
-            smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-                transitions={'flyup_open_finish':'FLYUP_CONTROL', 'flyup_open_error':'control_finish'})
+                transitions={'warmup_finish':'FLYUP_UNTIL'})
+            smach.StateMachine.add('FLYUP_UNTIL', sFlyupUntil(), 
+                transitions={'flyup_until_finish':'FLYUP_CONTROL', 'flyup_until_error':'control_finish'})
 
             self.sm_flyup_control = smach.StateMachine(outcomes=['flyup_control_finish', 'flyup_control_error'])
             self.sm_flyup_control.userdata.desired_Ql1 = None
