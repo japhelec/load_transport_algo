@@ -57,7 +57,7 @@ class sWpAssign(smach.State):
 
         wp1 = Pl + np.array([0, 0.2, 0.7])
         wp2 = Pl + np.array([0, 0.1, 0.9])
-        wp3 = Pl + np.array([0, 0, 1.1])
+        wp3 = Pl + np.array([0, 0, 0.7])
         
         # self.wps = [wp1, wp2, wp3]
         self.wps = [wp3]
@@ -110,7 +110,7 @@ class sWpTracking(smach.State):
         while not rospy.is_shutdown():
             err = desired_Ql - subs.Ql
 
-            if (err.dot(err) < 0.0064): # distance < 5 cm
+            if (err.dot(err) < 0.0009): # distance < 5 cm
                 # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
                 return 'wp_tracking_success'
 

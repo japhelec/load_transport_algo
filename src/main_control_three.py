@@ -63,21 +63,18 @@ class sWpAssign(smach.State):
         Pl2 = Payload.Pl(ap2_id)
         Pl3 = Payload.Pl(ap3_id)
 
-        wp1 = Pl1 + np.array([0, 0.2, 0.7])
-        wp2 = Pl1 + np.array([0, 0.1, 0.9])
-        wp3 = Pl1 + np.array([0, 0, 1.1])
+        # wp1 = Pl1 + np.array([0, 0.2, 0.7])
+        # wp2 = Pl1 + np.array([0, 0.1, 0.9])
+        wp3 = Pl1 + np.array([0, 0, 0.7])
         self.wps1 = [wp3]
         # self.wps1 = [wp1, wp2, wp3]
-        wp1 = Pl2 + np.array([0, -0.2, 0.7])
-        wp2 = Pl2 + np.array([0, -0.1, 0.9])
-        wp3 = Pl2 + np.array([0, 0, 1.1])
+        # wp1 = Pl2 + np.array([0, -0.2, 0.7])
+        # wp2 = Pl2 + np.array([0, -0.1, 0.9])
+        wp3 = Pl2 + np.array([0, 0, 0.7])
         self.wps2 = [wp3]
         # self.wps2 = [wp1, wp2, wp3]
-        wp1 = Pl3 + np.array([0, -0.2, 0.7])
-        wp2 = Pl3 + np.array([0, -0.1, 0.9])
-        wp3 = Pl3 + np.array([0, 0, 1.1])
+        wp3 = Pl3 + np.array([0, 0, 0.7])
         self.wps3 = [wp3]
-        # self.wps3 = [wp1, wp2, wp3]
         
         self.wp_count = len(self.wps1)
         self.counter = 0
@@ -92,7 +89,7 @@ class sWpAssign(smach.State):
             pub_sm.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
             return 'wp_assigned'
         else:
-            pub_sm.util_smach('WP_ASSIGN', 'LIFT')
+            pub_sm.util_smach('WP_ASSIGN', 'LAND')
             return 'wp_assign_finish'
 
 class sWpTracking(smach.State):
@@ -122,9 +119,9 @@ class sWpTracking(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state WP_TRACKING')          
-        self.pid1.setTarget(userdata.wp_tracking_input1, 0.1)
-        self.pid2.setTarget(userdata.wp_tracking_input2, 0.1)
-        self.pid3.setTarget(userdata.wp_tracking_input3, 0.1)
+        self.pid1.setTarget(userdata.wp_tracking_input1, 0.02)
+        self.pid2.setTarget(userdata.wp_tracking_input2, 0.02)
+        self.pid3.setTarget(userdata.wp_tracking_input3, 0.02)
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
@@ -135,75 +132,14 @@ class sWpTracking(smach.State):
             u1 = self.pid1.update(sub1.Ql)
             u2 = self.pid2.update(sub2.Ql)
             u3 = self.pid3.update(sub3.Ql)
-            u1 = sub1.bRc.dot(sub1.cRm.dot(sub1.mRl.dot(u1)))
-            u2 = sub2.bRc.dot(sub2.cRm.dot(sub2.mRl.dot(u2)))
-            u3 = sub3.bRc.dot(sub3.cRm.dot(sub3.mRl.dot(u3)))
+            u1 = sub1.bRc.dot(sub1.cRm.dot(u1))
+            u2 = sub2.bRc.dot(sub2.cRm.dot(u2))
+            u3 = sub3.bRc.dot(sub3.cRm.dot(u3))
 
+            pub1.util_Ql_err(self.pid1.err)
+            pub2.util_Ql_err(self.pid2.err)
+            pub3.util_Ql_err(self.pid3.err)
             pub1.util_cmd(u1[0], u1[1], u1[2], 0)
-            pub2.util_cmd(u2[0], u2[1], u2[2], 0)
-            pub3.util_cmd(u3[0], u3[1], u3[2], 0)
-            rate.sleep()
-        
-        return 'wp_tracking_error'
-
-class sLift(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['lift_finish', 'lift_error'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state LIFT')
-
-        pub1.util_cmd(0, 0, 1.5, 0)
-        pub2.util_cmd(0, 0, 1.5, 0)
-        pub3.util_cmd(0, 0, 1.5, 0)
-
-        rospy.sleep(2)
-
-        if rospy.is_shutdown():
-            return 'lift_error'
-        else:
-            pub1.util_hover()
-            pub2.util_hover()
-            pub3.util_hover()
-            pubs.util_smach('LIFT', 'STABILIZATION')
-            return 'lift_finish'
-
-class sStabilization(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['stabilization_success', 'stabilization_error'])
-
-        # load fly up control pid gain
-        path = os.path.dirname(__file__)
-        filepath = str(path) + '/flyup_pid_gain/%s.yml' % tello1_ns
-        with open(filepath, 'r') as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
-
-        self.pid2 = PID(
-            data['Kp_x'], data['Kp_y'], data['Kp_z'],
-            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
-            data['Kd_x'], data['Kd_y'], data['Kd_z'])
-
-        self.pid3 = PID(
-            data['Kp_x'], data['Kp_y'], data['Kp_z'],
-            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
-            data['Kd_x'], data['Kd_y'], data['Kd_z'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state STABILIZATION')          
-        self.pid2.setTarget(userdata.wp_tracking_input2, 0.1)
-        self.pid3.setTarget(userdata.wp_tracking_input3, 0.1)
-
-        rate = rospy.Rate(15) 
-        while not rospy.is_shutdown():
-            if self.pid2.check(sub2.Ql) and self.pid3.check(sub3.Ql): 
-                # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
-                return 'stabilization_success'
-            
-            u2 = self.pid2.update(sub2.Ql)
-            u3 = self.pid3.update(sub3.Ql)
-            u2 = sub2.bRc.dot(sub2.cRm.dot(sub2.mRl.dot(u2)))
-            u3 = sub3.bRc.dot(sub3.cRm.dot(sub3.mRl.dot(u3)))
-
             pub2.util_cmd(u2[0], u2[1], u2[2], 0)
             pub3.util_cmd(u3[0], u3[1], u3[2], 0)
             rate.sleep()
@@ -268,6 +204,7 @@ class Pubs():
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
+        self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -285,6 +222,13 @@ class Pubs():
 
     def util_land(self):
         self.pub_land.publish()
+
+    def util_Ql_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = err
+        self.pub_Ql_error.publish(msg)
+
 
 class PubSm():
     def __init__(self):
@@ -304,14 +248,12 @@ class Subs():
         self.bRc = Drone.bRc(tello_ns)
         self.marker_id = None
         self.Ql = None
-        self.Mc = None
         self.cRm = None
         self.mRl = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
-        self.sub_cRm = rospy.Subscriber('/%s/cRm' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
-        self.sub_Mc = rospy.Subscriber('/%s/Mc' % tello_ns, Mc_msg, self.cb_Mc, queue_size = 1)
-        self.sub_Ql = rospy.Subscriber('/%s/Ql' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
+        self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
+        self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -336,9 +278,6 @@ class Subs():
         self.cRm = cRm
         self.mRl = Payload.mRl(data.marker_id)
 
-    def cb_Mc(self, data):        
-        self.Mc = np.array(data.tvec)
-
     def cb_Ql(self, data):
         self.Ql = np.array(data.position)
 
@@ -346,20 +285,23 @@ def shutdown_hook():
     print("************in shutdown hook*************")
     pub1.util_hover()
     pub2.util_hover()
+    pub3.util_hover()
     rospy.sleep(0.5)
     pub1.util_land()
     pub2.util_land()
+    pub3.util_land()
 
 if __name__ == '__main__':
     rospy.init_node('control', anonymous=True)
 
     # task setting
     tello1_ns = rospy.get_param('~tello1_ns', "tello_601")
-    ap1_id = int(rospy.get_param('~ap1_id', "tello_601"))
+    ap1_id = Drone.ns2id(tello1_ns)
     tello2_ns = rospy.get_param('~tello2_ns', "tello_601")
-    ap2_id = int(rospy.get_param('~ap2_id', "tello_601"))
+    ap2_id = Drone.ns2id(tello2_ns)
     tello3_ns = rospy.get_param('~tello3_ns', "tello_601")
-    ap3_id = int(rospy.get_param('~ap3_id', "tello_601"))
+    ap3_id = Drone.ns2id(tello3_ns)
+    
 
     sub1 = Subs(tello1_ns)
     sub2 = Subs(tello2_ns)
