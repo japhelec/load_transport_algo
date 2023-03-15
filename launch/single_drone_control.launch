@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>	
+	<node pkg="load_transport" name="control" type="main_control_single.py" output="screen">
+		<param name="tello_ns" value="$(arg tello_ns)" />
+	</node>
+
+	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
+	record -o $(arg dir_ns)/$(arg bag_name).bag 
+	/state_transition 
+	/$(arg tello_ns)/cmd_vel 
+	/$(arg tello_ns)/land 
+	/$(arg tello_ns)/manual_takeoff 
+	/$(arg tello_ns)/camera/camera_info 
+	/$(arg tello_ns)/camera/compressed/compressed 
+	/$(arg tello_ns)/imu 
+	/$(arg tello_ns)/odom 
+	/$(arg tello_ns)/status 
+	/$(arg tello_ns)/Mc/raw 
+	/$(arg tello_ns)/Mc/filtered 
+	/$(arg tello_ns)/Ql/raw 
+	/$(arg tello_ns)/Ql/error 
+	/$(arg tello_ns)/Ql/filtered  
+	/$(arg tello_ns)/cRm/raw 
+	/$(arg tello_ns)/cRm/filtered
+	"/>
+</launch>

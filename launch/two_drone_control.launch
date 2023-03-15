@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<launch>	
+	<node pkg="load_transport" name="control" type="main_control_two.py" output="screen">
+		<param name="ap1_id" value="$(arg ap1_id)" />
+		<param name="tello1_ns" value="$(arg tello1_ns)" />
+		<param name="ap2_id" value="$(arg ap2_id)" />
+		<param name="tello2_ns" value="$(arg tello2_ns)" />
+	</node>
+
+	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
+	record -o $(arg dir_ns)/$(arg bag_name).bag 
+	/state_transition 
+	/$(arg tello1_ns)/cmd_vel 
+	/$(arg tello1_ns)/land 
+	/$(arg tello1_ns)/manual_takeoff 
+	/$(arg tello1_ns)/camera/camera_info 
+	/$(arg tello1_ns)/camera/compressed/compressed 
+	/$(arg tello1_ns)/imu 
+	/$(arg tello1_ns)/odom 
+	/$(arg tello1_ns)/status 
+	/$(arg tello1_ns)/Mc/raw 
+	/$(arg tello1_ns)/Mc/filtered 
+	/$(arg tello1_ns)/Ql/raw 
+	/$(arg tello1_ns)/Ql/filtered 
+	/$(arg tello1_ns)/Ql/error 
+	/$(arg tello1_ns)/cRm/raw
+	/$(arg tello1_ns)/cRm/filtered
+	/$(arg tello2_ns)/cmd_vel 
+	/$(arg tello2_ns)/land 
+	/$(arg tello2_ns)/manual_takeoff 
+	/$(arg tello2_ns)/camera/camera_info 
+	/$(arg tello2_ns)/camera/compressed/compressed 
+	/$(arg tello2_ns)/imu 
+	/$(arg tello2_ns)/odom 
+	/$(arg tello2_ns)/status 
+	/$(arg tello2_ns)/Mc/raw 
+	/$(arg tello2_ns)/Mc/filtered 
+	/$(arg tello2_ns)/Ql/raw 
+	/$(arg tello2_ns)/Ql/filtered 
+	/$(arg tello2_ns)/Ql/error 
+	/$(arg tello2_ns)/cRm/raw 
+	/$(arg tello2_ns)/cRm/filtered
+	"/>
+</launch>
