@@ -128,31 +128,37 @@ class sWpTracking(smach.State):
         smach.State.__init__(self, outcomes=['wp_tracking_success', 'wp_tracking_error'], input_keys=['wp_tracking_input1', 'wp_tracking_input2', 'wp_tracking_input3'])
 
         # load fly up control pid gain
-        path = os.path.dirname(__file__)
-        filepath = str(path) + '/flyup_pid_gain/%s.yml' % tello1_ns
-        with open(filepath, 'r') as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
+        kpx = float(rospy.get_param('~flyup_kpx', "1.2"))
+        kpy = float(rospy.get_param('~flyup_kpy', "1.2"))
+        kpz = float(rospy.get_param('~flyup_kpz', "1.2"))
+        kix = float(rospy.get_param('~flyup_kix', "0.03"))
+        kiy = float(rospy.get_param('~flyup_kiy', "0.03"))
+        kiz = float(rospy.get_param('~flyup_kiz', "0.03"))
+        kdx = float(rospy.get_param('~flyup_kdx', "0.001"))
+        kdy = float(rospy.get_param('~flyup_kdy', "0.001"))
+        kdz = float(rospy.get_param('~flyup_kdz', "0.001"))
 
         self.pid1 = PID(
-            data['Kp_x'], data['Kp_y'], data['Kp_z'],
-            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
-            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+            kpx, kpy, kpz,
+            kix, kiy, kiz, 
+            kdx, kdy, kdz)
 
         self.pid2 = PID(
-            data['Kp_x'], data['Kp_y'], data['Kp_z'],
-            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
-            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+            kpx, kpy, kpz,
+            kix, kiy, kiz, 
+            kdx, kdy, kdz)
 
         self.pid3 = PID(
-            data['Kp_x'], data['Kp_y'], data['Kp_z'],
-            data['Ki_x'], data['Ki_y'], data['Ki_z'], 
-            data['Kd_x'], data['Kd_y'], data['Kd_z'])
+            kpx, kpy, kpz,
+            kix, kiy, kiz, 
+            kdx, kdy, kdz)
 
     def execute(self, userdata):
         rospy.loginfo('Executing state WP_TRACKING')          
-        self.pid1.setTarget(userdata.wp_tracking_input1, 0.05)
-        self.pid2.setTarget(userdata.wp_tracking_input2, 0.05)
-        self.pid3.setTarget(userdata.wp_tracking_input3, 0.05)
+        flyup_tol = float(rospy.get_param('~flyup_tol', "0.05"))
+        self.pid1.setTarget(userdata.wp_tracking_input1, flyup_tol)
+        self.pid2.setTarget(userdata.wp_tracking_input2, flyup_tol)
+        self.pid3.setTarget(userdata.wp_tracking_input3, flyup_tol)
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():

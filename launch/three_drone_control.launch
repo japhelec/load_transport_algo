@@ -4,6 +4,16 @@
 		<param name="tello1_ns" value="$(arg tello1_ns)" />
 		<param name="tello2_ns" value="$(arg tello2_ns)" />
 		<param name="tello3_ns" value="$(arg tello3_ns)" />
+		<param name="flyup_kpx" value="$(arg flyup_kpx)" />
+		<param name="flyup_kpy" value="$(arg flyup_kpy)" />
+		<param name="flyup_kpz" value="$(arg flyup_kpz)" />
+		<param name="flyup_kix" value="$(arg flyup_kix)" />
+		<param name="flyup_kiy" value="$(arg flyup_kiy)" />
+		<param name="flyup_kiz" value="$(arg flyup_kiz)" />
+		<param name="flyup_kdx" value="$(arg flyup_kdx)" />
+		<param name="flyup_kdy" value="$(arg flyup_kdy)" />
+		<param name="flyup_kdz" value="$(arg flyup_kdz)" />
+		<param name="flyup_tol" value="$(arg flyup_tol)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
