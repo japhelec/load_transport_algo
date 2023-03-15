@@ -14,6 +14,8 @@
 		<param name="flyup_kdy" value="$(arg flyup_kdy)" />
 		<param name="flyup_kdz" value="$(arg flyup_kdz)" />
 		<param name="flyup_tol" value="$(arg flyup_tol)" />
+		<param name="lift_thrust" value="$(arg lift_thrust)" />
+		<param name="lift_duration" value="$(arg lift_duration)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="

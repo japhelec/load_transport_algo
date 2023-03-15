@@ -56,39 +56,6 @@ class sFlyupUntil(smach.State):
             rate.sleep()
         return 'flyup_until_error'
 
-class sFlyupOpen(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['flyup_open_finish'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state FLYUP_OPEN')
-
-        pub1.util_cmd(0, 0, 1.5, 0)
-        pub2.util_cmd(0, 0, 1.5, 0)
-        pub3.util_cmd(0, 0, 1.5, 0)
-
-        rospy.sleep(3.0)
-
-        pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
-        return 'flyup_open_finish'
-
-class sHover(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['hover_finish'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state HOVER')
-
-        pub1.util_hover()
-        pub2.util_hover()
-        pub3.util_hover()
-
-        rospy.sleep(20.0)
-
-        pub_sm.util_smach('HOVER', 'LAND')
-        return 'hover_finish'
-
-
 class sWpAssign(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['wp_assigned', 'wp_assign_finish'], output_keys=['wp_assign_output1', 'wp_assign_output2', 'wp_assign_output3'])
@@ -184,6 +151,41 @@ class sWpTracking(smach.State):
             rate.sleep()
         
         return 'wp_tracking_error'
+
+class sFlyupOpen(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['flyup_open_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state FLYUP_OPEN')
+        
+        thrust = float(rospy.get_param('~lift_thrust', "1.5"))
+        duration = float(rospy.get_param('~lift_duration', "3"))
+
+        pub1.util_cmd(0, 0, thrust, 0)
+        pub2.util_cmd(0, 0, thrust, 0)
+        pub3.util_cmd(0, 0, thrust, 0)
+
+        rospy.sleep(duration)
+
+        pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
+        return 'flyup_open_finish'
+
+class sHover(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['hover_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state HOVER')
+
+        pub1.util_hover()
+        pub2.util_hover()
+        pub3.util_hover()
+
+        rospy.sleep(20.0)
+
+        pub_sm.util_smach('HOVER', 'LAND')
+        return 'hover_finish'
 
 class sLand(smach.State):
     def __init__(self):
