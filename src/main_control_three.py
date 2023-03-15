@@ -150,9 +150,9 @@ class sWpTracking(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state WP_TRACKING')          
-        self.pid1.setTarget(userdata.wp_tracking_input1, 0.04)
-        self.pid2.setTarget(userdata.wp_tracking_input2, 0.04)
-        self.pid3.setTarget(userdata.wp_tracking_input3, 0.04)
+        self.pid1.setTarget(userdata.wp_tracking_input1, 0.05)
+        self.pid2.setTarget(userdata.wp_tracking_input2, 0.05)
+        self.pid3.setTarget(userdata.wp_tracking_input3, 0.05)
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
@@ -163,9 +163,9 @@ class sWpTracking(smach.State):
             u1 = self.pid1.update(sub1.Ql)
             u2 = self.pid2.update(sub2.Ql)
             u3 = self.pid3.update(sub3.Ql)
-            u1 = sub1.bRc.dot(sub1.cRm.dot(u1))
-            u2 = sub2.bRc.dot(sub2.cRm.dot(u2))
-            u3 = sub3.bRc.dot(sub3.cRm.dot(u3))
+            u1 = sub1.bRc.dot(sub1.cRm.dot(Payload.mRl().dot(u1)))
+            u2 = sub2.bRc.dot(sub2.cRm.dot(Payload.mRl().dot(u2)))
+            u3 = sub3.bRc.dot(sub3.cRm.dot(Payload.mRl().dot(u3)))
 
             pub1.util_Ql_err(self.pid1.err)
             pub2.util_Ql_err(self.pid2.err)
@@ -319,7 +319,7 @@ class Subs():
         rvec = np.array([[data.rvec]])
         cRm, jacob = cv2.Rodrigues(rvec) 
         self.cRm = cRm
-        self.mRl = Payload.mRl(data.marker_id)
+        self.mRl = Payload.mRl()
 
     def cb_Ql(self, data):
         self.Ql = np.array(data.position)

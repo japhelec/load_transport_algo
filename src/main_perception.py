@@ -32,6 +32,76 @@ class Perception():
         self.preQl = None
         self.preT = None
 
+        markersX = 6
+        markersY = 5
+        markerLength = 0.0315
+        markerSeparation = 0.0105
+        dictionary = aruco.Dictionary_get(aruco.DICT_4X4_50)
+        self.board = cv2.aruco.GridBoard_create(markersX, markersY, markerLength, markerSeparation, dictionary)
+
+    # def cb_marker_perception(self, img_raw):
+    #     ## cvBridge
+    #     frame = self.br.compressed_imgmsg_to_cv2(img_raw)
+
+    #     ## gray
+    #     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    #     ## detect
+    #     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
+    #     parameters =  aruco.DetectorParameters_create()
+    #     corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
+        
+    #     ## estimation
+    #     if ids is not None:
+    #         # check marker in FOV
+    #         idIndex = np.where(ids == self.id)
+    #         if len(idIndex[0]) == 0:
+    #             return
+    #         idIndex = idIndex[0][0]
+
+
+    #         corner = corners[idIndex]
+            
+    #         rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)          
+
+    #         msg_cRm = cRm_msg()
+    #         msg_cRm.header.stamp = rospy.get_rostime()
+    #         msg_cRm.marker_id = int(self.id)
+    #         msg_cRm.rvec = rvec[0][0]
+    #         self.pub_cRm_raw.publish(msg_cRm)
+
+    #         msg_Mc = Mc_msg()
+    #         msg_Mc.header.stamp = rospy.get_rostime()
+    #         msg_Mc.marker_id = int(self.id)
+    #         msg_Mc.tvec = tvec[0][0]
+    #         self.pub_Mc_raw.publish(msg_Mc)
+
+    #         msg_Ql = position_msg()
+    #         msg_Ql.header.stamp = rospy.get_rostime()
+    #         cRm, jacob = cv2.Rodrigues(rvec) 
+    #         Mc = tvec[0][0]
+    #         Qm = -(cRm.T).dot(Mc)
+    #         Ml = Payload.Ml(int(self.id))
+    #         Ql = Ml + Qm
+    #         msg_Ql.position = Ql
+    #         self.pub_Ql_raw.publish(msg_Ql)
+
+    #         # filter
+    #         curT = img_raw.header.stamp.to_sec()
+    #         if self.preQl is not None:
+    #             displacement = Ql - self.preQl
+    #             delta_t = curT - self.preT
+    #             vel = displacement / delta_t
+
+    #             if vel.dot(vel) > 1:
+    #                 return
+            
+    #         self.pub_Mc_filtered.publish(msg_Mc)
+    #         self.pub_cRm_filtered.publish(msg_cRm)
+    #         self.pub_Ql_filtered.publish(msg_Ql)
+    #         self.preT = curT
+    #         self.preQl = Ql
+
     def cb_marker_perception(self, img_raw):
         ## cvBridge
         frame = self.br.compressed_imgmsg_to_cv2(img_raw)
@@ -40,42 +110,35 @@ class Perception():
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         ## detect
-        aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
+        aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
         parameters =  aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray,aruco_dict,parameters=parameters)
         
         ## estimation
         if ids is not None:
-            # check marker in FOV
-            idIndex = np.where(ids == self.id)
-            if len(idIndex[0]) == 0:
-                return
-            idIndex = idIndex[0][0]
+            rvec = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype='f')
+            tvec = np.array([0,0,0], dtype='f')
 
-
-            corner = corners[idIndex]
-            
-            rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corner, Marker.length, self.mtx, self.dist)          
-
+            retval, rvec, tvec = aruco.estimatePoseBoard(corners, ids, self.board, self.mtx, self.dist, rvec, tvec)  # from C to M
+        
             msg_cRm = cRm_msg()
             msg_cRm.header.stamp = rospy.get_rostime()
             msg_cRm.marker_id = int(self.id)
-            msg_cRm.rvec = rvec[0][0]
+            msg_cRm.rvec = rvec.T[0]
             self.pub_cRm_raw.publish(msg_cRm)
 
             msg_Mc = Mc_msg()
             msg_Mc.header.stamp = rospy.get_rostime()
             msg_Mc.marker_id = int(self.id)
-            msg_Mc.tvec = tvec[0][0]
+            msg_Mc.tvec = tvec
             self.pub_Mc_raw.publish(msg_Mc)
 
             msg_Ql = position_msg()
             msg_Ql.header.stamp = rospy.get_rostime()
             cRm, jacob = cv2.Rodrigues(rvec) 
-            Mc = tvec[0][0]
-            Qm = -(cRm.T).dot(Mc)
-            Ml = Payload.Ml(int(self.id))
-            Ql = Ml + Qm
+            Mc = tvec
+            Qm = -(cRm.T).dot(Mc) + cRm.T.dot(np.array([0,0.05,0]))
+            Ql = Payload.mRl().dot(Qm)
             msg_Ql.position = Ql
             self.pub_Ql_raw.publish(msg_Ql)
 

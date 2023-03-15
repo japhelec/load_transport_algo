@@ -78,19 +78,25 @@ class Payload:
             return np.array([0.271, 0.155, 0]) #m
 
     @staticmethod
-    def mRl(marker_id):
-        angle = -np.pi/2*(marker_id%4)
-        mRl = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
-        return mRl
+    def mRl():
+        return np.array([
+            [1, 0, 0],
+            [0, -1, 0],
+            [0, 0, -1]
+        ])
 
     @staticmethod
     def Pl(ap_id):
         if ap_id == 0:
-            Ml = Payload.Ml(0)
-            return Ml + np.array([0, -Marker.length/2, 0]) #m
+            # Ml = Payload.Ml(0)
+            # return Ml + np.array([0, -Marker.length/2, 0]) #m
+            return np.array([0.12, -0.31, 0]) #m
+
         elif ap_id == 1:
-            Ml = Payload.Ml(1)
-            return Ml + np.array([-Marker.length/2, Marker.length/2, 0]) #m
+            # Ml = Payload.Ml(1)
+            # return Ml + np.array([-Marker.length/2, Marker.length/2, 0]) #m
+            return np.array([-0.203, 0.095, 0]) #m
         elif ap_id == 2:
-            Ml = Payload.Ml(2)
-            return Ml + np.array([Marker.length/2, Marker.length/2, 0]) #m
+            # Ml = Payload.Ml(2)
+            # return Ml + np.array([Marker.length/2, Marker.length/2, 0]) #m
+            return np.array([0.448, 0.095, 0]) #m

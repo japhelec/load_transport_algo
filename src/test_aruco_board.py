@@ -64,8 +64,9 @@ class MarkerDetect():
             copy = aruco.drawDetectedMarkers(img, corners, ids)
             retval, rvec, tvec = aruco.estimatePoseBoard(corners, ids, self.board, self.mtx, self.dist, rvec, tvec)  # from C to M
             print("====")
+            # cRm, jacob = cv2.Rodrigues(rvec) 
+            # print(cRm)
             print(tvec)
-            # print(tvec)
             # print("here")
             copy = cv2.drawFrameAxes(copy, self.mtx, self.dist, rvec, tvec, 3)
             cv2.imshow("fig", copy)
