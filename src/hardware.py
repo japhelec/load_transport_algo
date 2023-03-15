@@ -63,6 +63,8 @@ class Drone:
             return 2
         elif tello_ns == "tello_D":
             return 0
+        elif tello_ns == "tello_601":
+            return 0
             
 
 class Payload:

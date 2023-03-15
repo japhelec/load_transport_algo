@@ -56,6 +56,37 @@ class sFlyupUntil(smach.State):
             rate.sleep()
         return 'flyup_until_error'
 
+class sFlyupOpen(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['flyup_open_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state FLYUP_OPEN')
+
+        pub1.util_cmd(0, 0, 1.5, 0)
+        pub2.util_cmd(0, 0, 1.5, 0)
+        pub3.util_cmd(0, 0, 1.5, 0)
+
+        rospy.sleep(3.0)
+
+        return 'flyup_open_finish'
+
+class sHover(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['hover_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state HOVER')
+
+        pub1.util_hover()
+        pub2.util_hover()
+        pub3.util_hover()
+
+        rospy.sleep(20.0)
+
+        return 'hover_finish'
+
+
 class sWpAssign(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['wp_assigned', 'wp_assign_finish'], output_keys=['wp_assign_output1', 'wp_assign_output2', 'wp_assign_output3'])
@@ -119,9 +150,9 @@ class sWpTracking(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state WP_TRACKING')          
-        self.pid1.setTarget(userdata.wp_tracking_input1, 0.02)
-        self.pid2.setTarget(userdata.wp_tracking_input2, 0.02)
-        self.pid3.setTarget(userdata.wp_tracking_input3, 0.02)
+        self.pid1.setTarget(userdata.wp_tracking_input1, 0.04)
+        self.pid2.setTarget(userdata.wp_tracking_input2, 0.04)
+        self.pid3.setTarget(userdata.wp_tracking_input3, 0.04)
 
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
@@ -162,14 +193,6 @@ class sLand(smach.State):
         pub3.util_land()
         return 'land_finish'
 
-class sFake(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['fake_finish'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state FAKE')
-        return 'fake_finish'
-
 class Control():
     def __init__(self):        
         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
@@ -192,11 +215,31 @@ class Control():
                     remapping={'wp_tracking_input1':'desired_Ql1', 'wp_tracking_input2':'desired_Ql2', 'wp_tracking_input3':'desired_Ql3'})
 
             smach.StateMachine.add('FLYUP_CONTROL', self.sm_flyup_control, 
-                transitions={'flyup_control_finish':'LAND', 'flyup_control_error':'control_finish'})
+                transitions={'flyup_control_finish':'FLYUP_OPEN', 'flyup_control_error':'control_finish'})
+            smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+                transitions={'flyup_open_finish':'HOVER'})
+            smach.StateMachine.add('HOVER', sHover(), 
+                transitions={'hover_finish':'LAND'})
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
         smach_thread.start()
+
+# class Control():
+#     def __init__(self):        
+#         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
+#         with self.sm_top:
+#             smach.StateMachine.add('WARMUP', sWarmup(), 
+#                 transitions={'warmup_finish':'FLYUP_OPEN'})
+#             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+#                 transitions={'flyup_open_finish':'HOVER'})
+#             smach.StateMachine.add('HOVER', sHover(), 
+#                 transitions={'hover_finish':'LAND'})
+#             smach.StateMachine.add('LAND', sLand(), 
+#                 transitions={'land_finish':'control_finish'})
+#         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
+#         smach_thread.start()
+
 
 class Pubs():
     def __init__(self, tello_ns):

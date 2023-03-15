@@ -9,11 +9,15 @@ from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
 
+# from importlib.metadata import version
+# print(cv2.__version__)
+# print(cv2.drawFrameAxis())
+
 DEBUG = False
 
 class MarkerDetect():
     def __init__(self): 
-        self.tello_ns = rospy.get_param('~tello_ns', "tello_601")
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_A")
         # self.tello_ns = "tello_A"
 
         # [ camera ]
@@ -56,9 +60,16 @@ class MarkerDetect():
         if ids is not None:
             rvec = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype='f')
             tvec = np.array([0,0,0], dtype='f')
+
+            copy = aruco.drawDetectedMarkers(img, corners, ids)
             retval, rvec, tvec = aruco.estimatePoseBoard(corners, ids, self.board, self.mtx, self.dist, rvec, tvec)  # from C to M
+            print("====")
+            print(tvec)
             # print(tvec)
             # print("here")
+            copy = cv2.drawFrameAxes(copy, self.mtx, self.dist, rvec, tvec, 3)
+            cv2.imshow("fig", copy)
+            cv2.waitKey(1)
 
 def main():
     rospy.init_node('marker_detect', anonymous=True)
