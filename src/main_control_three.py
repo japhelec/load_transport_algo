@@ -69,6 +69,7 @@ class sFlyupOpen(smach.State):
 
         rospy.sleep(3.0)
 
+        pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
         return 'flyup_open_finish'
 
 class sHover(smach.State):
@@ -84,6 +85,7 @@ class sHover(smach.State):
 
         rospy.sleep(20.0)
 
+        pub_sm.util_smach('HOVER', 'LAND')
         return 'hover_finish'
 
 
@@ -120,7 +122,7 @@ class sWpAssign(smach.State):
             pub_sm.util_smach('WP_ASSIGN %d' % self.counter, 'WP_TRACK %d' % self.counter)
             return 'wp_assigned'
         else:
-            pub_sm.util_smach('WP_ASSIGN', 'LAND')
+            pub_sm.util_smach('WP_ASSIGN', 'FLYUP_OPEN')
             return 'wp_assign_finish'
 
 class sWpTracking(smach.State):
