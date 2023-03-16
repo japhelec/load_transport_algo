@@ -171,6 +171,25 @@ class sFlyupOpen(smach.State):
         pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
         return 'flyup_open_finish'
 
+# class sTransport(smach.State):
+#     def __init__(self):
+#         smach.State.__init__(self, outcomes=['transport_finish'])
+
+#     def execute(self, userdata):
+#         rospy.loginfo('Executing state TRANSPORT')
+        
+#         thrust = float(rospy.get_param('~lift_thrust', "1.5"))
+#         duration = float(rospy.get_param('~lift_duration', "3"))
+
+#         pub1.util_cmd(0, 0, thrust, 0)
+#         pub2.util_cmd(0, 0, thrust, 0)
+#         pub3.util_cmd(0, 0, thrust, 0)
+
+#         rospy.sleep(duration)
+
+#         pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
+#         return 'flyup_open_finish'
+
 class sHover(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['hover_finish'])
