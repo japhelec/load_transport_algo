@@ -155,6 +155,9 @@ class Perception():
 
 class KalmanFilter:
     def __init__(self):
+        Q_gain = float(rospy.get_param('~kalman_Q', "0.7"))
+        R_gain = float(rospy.get_param('~kalman_R', "0.3"))
+        
         dt = 1.0/15.0
         self.x = None
         self.P = None
@@ -163,10 +166,10 @@ class KalmanFilter:
         self.Q = np.array([
             [dt*dt*dt*dt/4, dt*dt*dt/2],
             [dt*dt*dt/2, dt*dt]
-        ])*0.7
+        ])*Q_gain
 
         self.H = np.array([1,0])
-        self.R = 0.3
+        self.R = R_gain
 
     def access(self):
         if self.x is None:
