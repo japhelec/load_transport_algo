@@ -38,6 +38,7 @@
 	/$(arg tello1_ns)/Ql/filtered  
 	/$(arg tello1_ns)/cRm/raw 
 	/$(arg tello1_ns)/cRm/filtered 
+	/$(arg tello1_ns)/height/filtered 
 	/$(arg tello2_ns)/cmd_vel 
 	/$(arg tello2_ns)/land 
 	/$(arg tello2_ns)/manual_takeoff 
@@ -53,6 +54,7 @@
 	/$(arg tello2_ns)/Ql/filtered  
 	/$(arg tello2_ns)/cRm/raw 
 	/$(arg tello2_ns)/cRm/filtered 
+	/$(arg tello2_ns)/height/filtered 
 	/$(arg tello3_ns)/cmd_vel 
 	/$(arg tello3_ns)/land 
 	/$(arg tello3_ns)/manual_takeoff 
@@ -67,6 +69,7 @@
 	/$(arg tello3_ns)/Ql/error 
 	/$(arg tello3_ns)/Ql/filtered  
 	/$(arg tello3_ns)/cRm/raw 
-	/$(arg tello3_ns)/cRm/filtered
+	/$(arg tello3_ns)/cRm/filtered 
+	/$(arg tello3_ns)/height/filtered
 	"/>
 </launch>
