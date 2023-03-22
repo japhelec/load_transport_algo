@@ -14,7 +14,9 @@
 		<param name="flyup_kdy" value="$(arg flyup_kdy)" />
 		<param name="flyup_kdz" value="$(arg flyup_kdz)" />
 		<param name="flyup_tol" value="$(arg flyup_tol)" />
-		<param name="lift_thrust" value="$(arg lift_thrust)" />
+		<param name="lift_thrust_01" value="$(arg lift_thrust_01)" />
+		<param name="lift_thrust_02" value="$(arg lift_thrust_02)" />
+		<param name="lift_thrust_03" value="$(arg lift_thrust_03)" />
 		<param name="lift_duration" value="$(arg lift_duration)" />
 	</node>
 
