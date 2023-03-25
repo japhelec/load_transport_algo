@@ -173,25 +173,6 @@ class sFlyupOpen(smach.State):
         pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
         return 'flyup_open_finish'
 
-# class sTransport(smach.State):
-#     def __init__(self):
-#         smach.State.__init__(self, outcomes=['transport_finish'])
-
-#     def execute(self, userdata):
-#         rospy.loginfo('Executing state TRANSPORT')
-        
-#         thrust = float(rospy.get_param('~lift_thrust', "1.5"))
-#         duration = float(rospy.get_param('~lift_duration', "3"))
-
-#         pub1.util_cmd(0, 0, thrust, 0)
-#         pub2.util_cmd(0, 0, thrust, 0)
-#         pub3.util_cmd(0, 0, thrust, 0)
-
-#         rospy.sleep(duration)
-
-#         pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
-#         return 'flyup_open_finish'
-
 class sHover(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['hover_finish'])
@@ -207,6 +188,60 @@ class sHover(smach.State):
 
         pub_sm.util_smach('HOVER', 'LAND')
         return 'hover_finish'
+
+# class sStabilizeZ(smach.State):
+#     def __init__(self):
+#         smach.State.__init__(self, outcomes=['wp_tracking_success', 'wp_tracking_error'], input_keys=['wp_tracking_input1', 'wp_tracking_input2', 'wp_tracking_input3'])
+
+#         # load fly up control pid gain
+#         kpz = float(rospy.get_param('~height_kpz', "1.2"))
+
+#         self.pid1 = PID(
+#             kpx, kpy, kpz,
+#             kix, kiy, kiz, 
+#             kdx, kdy, kdz)
+
+#         self.pid2 = PID(
+#             kpx, kpy, kpz,
+#             kix, kiy, kiz, 
+#             kdx, kdy, kdz)
+
+#         self.pid3 = PID(
+#             kpx, kpy, kpz,
+#             kix, kiy, kiz, 
+#             kdx, kdy, kdz)
+
+#     def execute(self, userdata):
+#         rospy.loginfo('Executing state WP_TRACKING')          
+#         flyup_tol = float(rospy.get_param('~flyup_tol', "0.05"))
+#         self.pid1.setTarget(userdata.wp_tracking_input1, flyup_tol)
+#         self.pid2.setTarget(userdata.wp_tracking_input2, flyup_tol)
+#         self.pid3.setTarget(userdata.wp_tracking_input3, flyup_tol)
+
+#         rate = rospy.Rate(15) 
+#         while not rospy.is_shutdown():
+#             if self.pid1.check(sub1.Ql) and self.pid2.check(sub2.Ql) and self.pid3.check(sub3.Ql): 
+#                 # pubs.util_smach('WP_TRACK', 'WP_ASSIGN')
+#                 return 'wp_tracking_success'
+            
+#             u1 = self.pid1.update(sub1.Ql)
+#             u2 = self.pid2.update(sub2.Ql)
+#             u3 = self.pid3.update(sub3.Ql)
+#             u1 = sub1.bRc.dot(sub1.cRm.dot(Payload.mRl().dot(u1)))
+#             u2 = sub2.bRc.dot(sub2.cRm.dot(Payload.mRl().dot(u2)))
+#             u3 = sub3.bRc.dot(sub3.cRm.dot(Payload.mRl().dot(u3)))
+
+#             pub1.util_Ql_err(self.pid1.err)
+#             pub2.util_Ql_err(self.pid2.err)
+#             pub3.util_Ql_err(self.pid3.err)
+#             pub1.util_cmd(u1[0], u1[1], u1[2], 0)
+#             pub2.util_cmd(u2[0], u2[1], u2[2], 0)
+#             pub3.util_cmd(u3[0], u3[1], u3[2], 0)
+#             rate.sleep()
+        
+#         return 'wp_tracking_error'
+
+
 
 class sLand(smach.State):
     def __init__(self):
