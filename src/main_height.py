@@ -18,13 +18,13 @@ class Height_Filter():
 
         # [kal]
         self.Kal = KalmanFilter()
-        self.h = None
 
         # [sub]
         self.sub_imu = rospy.Subscriber("/%s/imu" % self.tello_ns, Imu, self.cb_imu, queue_size = 1)
         self.sub_tof = rospy.Subscriber("/%s/status" % self.tello_ns, TelloStatus, self.cb_tof, queue_size = 1)
 
         # [pub]
+        self.pub_h = rospy.Publisher('/%s/height/raw' % self.tello_ns, position_msg, queue_size=1)
         self.pub_h_filtered = rospy.Publisher('/%s/height/filtered' % self.tello_ns, position_msg, queue_size=1)
         
         self.filter_pub()
@@ -47,12 +47,24 @@ class Height_Filter():
         self.Kal.update_imu(z*(-10)-9.81)
 
     def cb_tof(self, msg):
-        self.Kal.update_tof(msg.height_m)
+        height_raw = msg.height_m
+        if height_raw > 0:
+            height_exclude_negative = height_raw
+        else:
+            height_exclude_negative = 0
+        
+        msg_h = position_msg()
+        msg_h.header.stamp = rospy.get_rostime()
+        msg_h.position = np.array([0,0,height_exclude_negative])
+        self.pub_h.publish(msg_h)
+
+        self.Kal.update_tof(height_exclude_negative)
 
 class KalmanFilter:
     def __init__(self):
-        # Q_gain = float(rospy.get_param('~height_Q', "0.7"))
-        # R_gain = float(rospy.get_param('~height_R', "0.3"))
+        Q_az_gain = float(rospy.get_param('~height_Q_az', "0.01"))
+        R_h_gain = float(rospy.get_param('~height_R_h', "1"))
+        R_az_gain = float(rospy.get_param('~height_R_az', "0.1"))
         
         dt = 1.0/15.0
         self.x = np.array([0,0,0])
@@ -65,15 +77,15 @@ class KalmanFilter:
         ])
 
         self.Q = np.array([
-            [1, 0, 0],
-            [0, 0.1, 0],
-            [0, 0, 0.01]
+            [5, 0, 0],
+            [0, 1, 0],
+            [0, 0, Q_az_gain]
         ])
 
         self.H_tof = np.array([1,0,0])
         self.H_imu = np.array([0,0,1])
-        self.R_tof = 10
-        self.R_imu = 0.1
+        self.R_tof = R_h_gain
+        self.R_imu = R_az_gain
 
     def access(self):
         return self.x[0]
