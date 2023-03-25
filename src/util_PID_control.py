@@ -53,3 +53,37 @@ class PID():
 
         return np.array([ux, uy, uz])
 
+
+
+class PID_z():
+    def __init__(self, Kp, Ki, Kd):
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+
+        self.preErr = 0.0
+        self.sumErr = 0.0
+        self.err = 0
+
+    def setTarget(self, target, tolerence = 0.0):
+        self.target = target
+        self.tolerence = tolerence
+
+    def check(self, data):
+        err = self.target - data
+
+        if err*err < self.tolerence*self.tolerence:
+            return True
+        else:
+            return False
+
+    def update(self, data):
+        err = self.target - data
+        self.err = err
+
+        self.sumErr = self.sumErr + err
+        dErr = err - self.preErr
+        u = self.Kp * err + self.Ki * self.sumErr + self.Kd * dErr
+        self.preErr = err
+
+        return u

@@ -18,6 +18,8 @@
 		<param name="lift_thrust_02" value="$(arg lift_thrust_02)" />
 		<param name="lift_thrust_03" value="$(arg lift_thrust_03)" />
 		<param name="lift_duration" value="$(arg lift_duration)" />
+		<param name="height_kpz" value="$(arg height_kpz)" />
+		<param name="height_d" value="$(arg height_d)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
