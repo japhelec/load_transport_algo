@@ -20,7 +20,7 @@ from tf.transformations import quaternion_matrix
 from hardware import Payload, Drone
 
 # util
-from util_PID_control import PID
+from util_PID_control import PID, PID_z
 
 class sWarmup(smach.State):
     def __init__(self):
@@ -218,9 +218,6 @@ class sStabilizeZ(smach.State):
             u2 = self.pid2.update(sub2.h)
             u3 = self.pid3.update(sub3.h)
 
-            pub1.util_Ql_err(self.pid1.err)
-            pub2.util_Ql_err(self.pid2.err)
-            pub3.util_Ql_err(self.pid3.err)
             pub1.util_cmd(0, 0, u1, 0)
             pub2.util_cmd(0, 0, u2, 0)
             pub3.util_cmd(0, 0, u3, 0)
