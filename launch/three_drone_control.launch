@@ -19,6 +19,8 @@
 		<param name="lift_thrust_03" value="$(arg lift_thrust_03)" />
 		<param name="lift_duration" value="$(arg lift_duration)" />
 		<param name="height_kpz" value="$(arg height_kpz)" />
+		<param name="height_kiz" value="$(arg height_kiz)" />
+		<param name="height_kdz" value="$(arg height_kdz)" />
 		<param name="height_d" value="$(arg height_d)" />
 	</node>
 
@@ -42,6 +44,7 @@
 	/$(arg tello1_ns)/cRm/filtered 
 	/$(arg tello1_ns)/height/raw 
 	/$(arg tello1_ns)/height/filtered 
+	/$(arg tello1_ns)/height/error 
 	/$(arg tello2_ns)/cmd_vel 
 	/$(arg tello2_ns)/land 
 	/$(arg tello2_ns)/manual_takeoff 
@@ -59,6 +62,7 @@
 	/$(arg tello2_ns)/cRm/filtered 
 	/$(arg tello2_ns)/height/raw 
 	/$(arg tello2_ns)/height/filtered 
+	/$(arg tello2_ns)/height/error 
 	/$(arg tello3_ns)/cmd_vel 
 	/$(arg tello3_ns)/land 
 	/$(arg tello3_ns)/manual_takeoff 
@@ -75,6 +79,7 @@
 	/$(arg tello3_ns)/cRm/raw 
 	/$(arg tello3_ns)/cRm/filtered 
 	/$(arg tello3_ns)/height/raw 
-	/$(arg tello3_ns)/height/filtered
+	/$(arg tello3_ns)/height/filtered 
+	/$(arg tello3_ns)/height/error
 	"/>
 </launch>

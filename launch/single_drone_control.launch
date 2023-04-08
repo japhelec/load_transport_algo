@@ -2,6 +2,22 @@
 <launch>	
 	<node pkg="load_transport" name="control" type="main_control_single.py" output="screen">
 		<param name="tello_ns" value="$(arg tello_ns)" />
+		<param name="flyup_kpx" value="$(arg flyup_kpx)" />
+		<param name="flyup_kpy" value="$(arg flyup_kpy)" />
+		<param name="flyup_kpz" value="$(arg flyup_kpz)" />
+		<param name="flyup_kix" value="$(arg flyup_kix)" />
+		<param name="flyup_kiy" value="$(arg flyup_kiy)" />
+		<param name="flyup_kiz" value="$(arg flyup_kiz)" />
+		<param name="flyup_kdx" value="$(arg flyup_kdx)" />
+		<param name="flyup_kdy" value="$(arg flyup_kdy)" />
+		<param name="flyup_kdz" value="$(arg flyup_kdz)" />
+		<param name="flyup_tol" value="$(arg flyup_tol)" />
+		<param name="lift_thrust" value="$(arg lift_thrust)" />
+		<param name="lift_duration" value="$(arg lift_duration)" />
+		<param name="height_kpz" value="$(arg height_kpz)" />
+		<param name="height_kiz" value="$(arg height_kiz)" />
+		<param name="height_kdz" value="$(arg height_kdz)" />
+		<param name="height_d" value="$(arg height_d)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
@@ -21,6 +37,9 @@
 	/$(arg tello_ns)/Ql/error 
 	/$(arg tello_ns)/Ql/filtered  
 	/$(arg tello_ns)/cRm/raw 
-	/$(arg tello_ns)/cRm/filtered
+	/$(arg tello_ns)/cRm/filtered 
+	/$(arg tello_ns)/height/raw 
+	/$(arg tello_ns)/height/filtered 
+	/$(arg tello_ns)/height/error
 	"/>
 </launch>

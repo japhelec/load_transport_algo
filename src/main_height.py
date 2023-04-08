@@ -77,9 +77,9 @@ class KalmanFilter:
         ])
 
         self.Q = np.array([
-            [5, 0, 0],
-            [0, 1, 0],
-            [0, 0, Q_az_gain]
+            [1, 0.1, 0.01],
+            [0.1, 1, 0.1],
+            [0.01, 0.1, Q_az_gain]
         ])
 
         self.H_tof = np.array([1,0,0])

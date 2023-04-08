@@ -18,6 +18,7 @@ from tf.transformations import quaternion_matrix
 
 # Hardward Config
 from hardware import Payload, Drone
+from util_PID_control import PID, PID_z
 
 
 class sWarmup(smach.State):
@@ -163,8 +164,13 @@ class sFlyupOpen(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state FLYUP_OPEN')
-        pubs.util_cmd(0, 0, 1.0, 0)
-        rospy.sleep(4.0)
+
+        thrust = float(rospy.get_param('~lift_thrust', "1.5"))
+        duration = float(rospy.get_param('~lift_duration', "3"))
+
+        pubs.util_cmd(0, 0, thrust, 0)
+        rospy.sleep(duration)
+
         return 'flyup_open_finish'
 
 
@@ -177,6 +183,37 @@ class sHover(smach.State):
         pubs.util_hover()
         rospy.sleep(20.0)
         return 'hover_finish'
+
+class sStabilizeZ(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['stab_finish'])
+
+        # load fly up control pid gain
+        kpz = float(rospy.get_param('~height_kpz', "2.0"))
+        kiz = float(rospy.get_param('~height_kiz', "2.0"))
+        kdz = float(rospy.get_param('~height_kdz', "2.0"))
+
+        self.pid = PID_z(kpz, kiz, kdz)
+
+        # set target height
+        height_d = float(rospy.get_param('~height_d', "1.2"))
+        self.pid.setTarget(height_d)
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state STABILIZE Z')          
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+            
+            u = self.pid.update(subs.h)
+
+            pubs.util_h_err(self.pid.err)
+
+            pubs.util_cmd(0, 0, u, 0)
+            rate.sleep()
+        
+        return 'stab_finish'
+
 
 
 # class Control():
@@ -211,10 +248,14 @@ class Control():
         with self.sm_top:
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
+            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+            #     transitions={'flyup_open_finish':'HOVER'})
+            # smach.StateMachine.add('HOVER', sHover(), 
+            #     transitions={'hover_finish':'LAND'})
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-                transitions={'flyup_open_finish':'HOVER'})
-            smach.StateMachine.add('HOVER', sHover(), 
-                transitions={'hover_finish':'LAND'})
+                transitions={'flyup_open_finish':'STABILIZE'})
+            smach.StateMachine.add('STABILIZE', sStabilizeZ(), 
+                transitions={'stab_finish':'LAND'})
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
@@ -228,6 +269,7 @@ class Pubs():
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
 
         rospy.on_shutdown(self.shutdown_hook)
 
@@ -261,6 +303,13 @@ class Pubs():
         msg.after = state_after
         self.pub_smach.publish(msg)
 
+    def util_h_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = np.array([0,0,err])
+        self.pub_h_error.publish(msg)
+
+
     def shutdown_hook(self):
         print("************in shutdown hook*************")
         self.util_hover()
@@ -277,10 +326,12 @@ class Subs():
         self.Ql = None
         self.cRm = None
         self.mRl = None
+        self.h = 0
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
+        self.sub_height = rospy.Subscriber('/%s/height/filtered' % tello_ns, position_msg, self.cb_height, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -308,6 +359,10 @@ class Subs():
     def cb_Ql(self, data):
         self.Ql = np.array(data.position)
   
+    def cb_height(self, data):
+        self.h = data.position[2]
+
+
 if __name__ == '__main__':
     rospy.init_node('control', anonymous=True)
 

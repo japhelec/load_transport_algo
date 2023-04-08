@@ -170,7 +170,7 @@ class sFlyupOpen(smach.State):
 
         rospy.sleep(duration)
 
-        pub_sm.util_smach('FLYUP_OPEN', 'HOVER')
+        pub_sm.util_smach('FLYUP_OPEN', 'STABILIZE')
         return 'flyup_open_finish'
 
 class sHover(smach.State):
@@ -184,10 +184,43 @@ class sHover(smach.State):
         pub2.util_hover()
         pub3.util_hover()
 
+        rospy.sleep(15.0)
+
+        pub_sm.util_smach('HOVER', 'LEFT')
+        return 'hover_finish'
+
+class sLeft(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['left_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state LEFT')
+
+        pub1.util_cmd(-0.5, 0, 0, 0)
+        pub2.util_cmd(-0.5, 0, 0, 0)
+        pub3.util_cmd(-0.5, 0, 0, 0)
+
         rospy.sleep(10.0)
 
-        pub_sm.util_smach('HOVER', 'LAND')
-        return 'hover_finish'
+        pub_sm.util_smach('LEFT', 'RIGHT')
+        return 'left_finish'
+
+class sRight(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['right_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state RIGHT')
+
+        pub1.util_cmd(0.5, 0, 0, 0)
+        pub2.util_cmd(0.5, 0, 0, 0)
+        pub3.util_cmd(0.5, 0, 0, 0)
+
+        rospy.sleep(10.0)
+
+        pub_sm.util_smach('RIGHT', 'LAND')
+        return 'right_finish'
+
 
 class sStabilizeZ(smach.State):
     def __init__(self):
@@ -195,8 +228,8 @@ class sStabilizeZ(smach.State):
 
         # load fly up control pid gain
         kpz = float(rospy.get_param('~height_kpz', "2.0"))
-        kiz = 0
-        kdz = 0
+        kiz = float(rospy.get_param('~height_kiz', "2.0"))
+        kdz = float(rospy.get_param('~height_kdz', "2.0"))
 
         self.pid1 = PID_z(kpz, kiz, kdz)
         self.pid2 = PID_z(kpz, kiz, kdz)
@@ -217,6 +250,10 @@ class sStabilizeZ(smach.State):
             u1 = self.pid1.update(sub1.h)
             u2 = self.pid2.update(sub2.h)
             u3 = self.pid3.update(sub3.h)
+
+            pub1.util_h_err(self.pid1.err)
+            pub2.util_h_err(self.pid2.err)
+            pub3.util_h_err(self.pid3.err)
 
             pub1.util_cmd(0, 0, u1, 0)
             pub2.util_cmd(0, 0, u2, 0)
@@ -281,10 +318,28 @@ class Control():
         with self.sm_top:
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
+            # smach.StateMachine.add('WARMUP', sWarmup(), 
+            #     transitions={'warmup_finish':'LAND'})
+
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'STABILIZE'})
             smach.StateMachine.add('STABILIZE', sStabilizeZ(), 
                 transitions={'stab_finish':'LAND'})
+
+            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+            #     transitions={'flyup_open_finish':'HOVER'})
+            # smach.StateMachine.add('HOVER', sHover(), 
+            #     transitions={'hover_finish':'LAND'})
+
+            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+            #     transitions={'flyup_open_finish':'HOVER'})
+            # smach.StateMachine.add('HOVER', sHover(), 
+            #     transitions={'hover_finish':'LEFT'})
+            # smach.StateMachine.add('LEFT', sLeft(), 
+            #     transitions={'left_finish':'RIGHT'})
+            # smach.StateMachine.add('RIGHT', sRight(), 
+            #     transitions={'right_finish':'LAND'})
+
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
@@ -298,6 +353,7 @@ class Pubs():
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -321,6 +377,12 @@ class Pubs():
         msg.header.stamp = rospy.get_rostime()
         msg.position = err
         self.pub_Ql_error.publish(msg)
+
+    def util_h_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = np.array([0,0,err])
+        self.pub_h_error.publish(msg)
 
 
 class PubSm():

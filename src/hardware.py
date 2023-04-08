@@ -59,6 +59,8 @@ class Drone:
     def ns2id(tello_ns):
         if tello_ns == "tello_A":
             return 1
+        elif tello_ns == "tello_E":
+            return 1
         elif tello_ns == "tello_C":
             return 2
         elif tello_ns == "tello_D":
