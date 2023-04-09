@@ -18,7 +18,7 @@ from tf.transformations import quaternion_matrix
 
 # Hardward Config
 from hardware import Payload, Drone
-from util_PID_control import PID, PID_z
+from util_PID_control import PID, PID_z, PID_single_var
 
 
 class sWarmup(smach.State):
@@ -156,6 +156,10 @@ class sFake(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state FAKE')
+
+        pubs.util_cmd(0, 0, 0, 0.2)
+        rospy.sleep(20)
+
         return 'fake_finish'
 
 class sFlyupOpen(smach.State):
@@ -173,6 +177,20 @@ class sFlyupOpen(smach.State):
 
         return 'flyup_open_finish'
 
+class sInfiniteHover(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['hover_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state INFINITE_HOVER')
+
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+            
+            pubs.util_hover()
+            rate.sleep()
+        
+        return 'hover_finish'
 
 class sHover(smach.State):
     def __init__(self):
@@ -214,6 +232,46 @@ class sStabilizeZ(smach.State):
         
         return 'stab_finish'
 
+class sStabilize(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['stab_finish'])
+
+        # load fly up control pid gain
+        kp_yaw = float(rospy.get_param('~yaw_kp', "0.025"))
+        ki_yaw = 0
+        kd_yaw = 0
+
+        self.pid_yaw = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+
+        # set target 
+        theta_d = 0
+        self.pid_yaw.setTarget(theta_d)
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state STABILIZE')          
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+
+            bearing = subs.bearing
+
+            if bearing is None:
+                continue
+
+            bearing[1] = 0
+            theta = bearing@np.array([0,0,1])
+            theta = theta / np.sqrt(bearing@bearing)
+            theta = np.arccos(theta)*180/np.pi
+            theta = -np.sign(bearing[0]) * theta
+
+            u = self.pid_yaw.update(theta)
+
+            pubs.util_bearing_err(self.pid_yaw.err)
+            pubs.util_cmd(0, 0, 0, u)
+            rate.sleep()
+        
+        return 'stab_finish'
+
 
 
 # class Control():
@@ -249,12 +307,20 @@ class Control():
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-            #     transitions={'flyup_open_finish':'HOVER'})
+                # transitions={'flyup_open_finish':'HOVER'})
             # smach.StateMachine.add('HOVER', sHover(), 
             #     transitions={'hover_finish':'LAND'})
+            # smach.StateMachine.add('HOVER', sInfiniteHover(), 
+                # transitions={'hover_finish':'LAND'})
+            # smach.StateMachine.add('HOVER', sFake(), 
+                # transitions={'fake_finish':'LAND'})
+
+            
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'STABILIZE'})
-            smach.StateMachine.add('STABILIZE', sStabilizeZ(), 
+            # # smach.StateMachine.add('STABILIZE', sStabilizeZ(), 
+            # #     transitions={'stab_finish':'LAND'})
+            smach.StateMachine.add('STABILIZE', sStabilize(), 
                 transitions={'stab_finish':'LAND'})
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
@@ -270,6 +336,7 @@ class Pubs():
         self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
         self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_error = rospy.Publisher('/%s/bearing/error' % tello_ns, position_msg, queue_size=1)
 
         rospy.on_shutdown(self.shutdown_hook)
 
@@ -309,6 +376,12 @@ class Pubs():
         msg.position = np.array([0,0,err])
         self.pub_h_error.publish(msg)
 
+    def util_bearing_err(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = np.array([0,0,err])
+        self.pub_bearing_error.publish(msg)
+
 
     def shutdown_hook(self):
         print("************in shutdown hook*************")
@@ -327,11 +400,14 @@ class Subs():
         self.cRm = None
         self.mRl = None
         self.h = 0
-        
+        self.bearing = None
+
+
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
         self.sub_height = rospy.Subscriber('/%s/height/filtered' % tello_ns, position_msg, self.cb_height, queue_size = 1)
+        self.sub_bearing = rospy.Subscriber('/%s/bearing' % tello_ns, position_msg, self.cb_bearing, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -361,6 +437,9 @@ class Subs():
   
     def cb_height(self, data):
         self.h = data.position[2]
+
+    def cb_bearing(self, data):
+        self.bearing = np.array(data.position)
 
 
 if __name__ == '__main__':
