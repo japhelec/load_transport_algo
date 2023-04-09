@@ -38,6 +38,7 @@
 	/$(arg tello_ns)/Ql/filtered  
 	/$(arg tello_ns)/cRm/raw 
 	/$(arg tello_ns)/cRm/filtered 
+	/$(arg tello_ns)/bearing 
 	/$(arg tello_ns)/height/raw 
 	/$(arg tello_ns)/height/filtered 
 	/$(arg tello_ns)/height/error
