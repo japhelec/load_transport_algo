@@ -31,8 +31,8 @@ class Bearing():
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # lower bound and upper bound for Green color
-        lower_bound = np.array([3, 150, 135])	 
-        upper_bound = np.array([26, 265, 265])
+        lower_bound = np.array([107, 133, -4])
+        upper_bound = np.array([132, 243, 211])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
@@ -40,47 +40,54 @@ class Bearing():
         # contour points
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contour = max(contours, key = len)
-
-        # formulate D matrix
-        sh = contour.shape
-        c = contour.reshape(sh[0], sh[2])
-        del contour
-        cx = c[:,0]
-        cx = cx[:, None]
-        cy = c[:,1]
-        cy = cy[:, None]
+        area = cv2.contourArea(contour)
         
-        D = np.hstack((cx**2,cx*cy, cy**2, c, np.ones((sh[0], 1))))
-        del c
-        del cx
-        del cy
+        if area > 500:
+            cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
-        # find ellipse 
-        F = D.T@D
-        del D
-        
-        w, vr = eig(F)
-        A = vr[:, np.argmin(w)]
+            # formulate D matrix
+            sh = contour.shape
+            c = contour.reshape(sh[0], sh[2])
+            del contour
+            cx = c[:,0]
+            cx = cx[:, None]
+            cy = c[:,1]
+            cy = cy[:, None]
+            
+            D = np.hstack((cx**2,cx*cy, cy**2, c, np.ones((sh[0], 1))))
+            del c
+            del cx
+            del cy
 
-        B = A[1]
-        C = A[2]
-        D = A[3]
-        E = A[4]
-        F = A[5]
-        A = A[0]
+            # find ellipse 
+            F = D.T@D
+            del D
+            
+            w, vr = eig(F)
+            A = vr[:, np.argmin(w)]
 
-        xc = (B*E-2*C*D)/(4*A*C-B*B)
-        yc = (D*B-2*A*E)/(4*A*C-B*B)
+            B = A[1]
+            C = A[2]
+            D = A[3]
+            E = A[4]
+            F = A[5]
+            A = A[0]
 
-        # find bearing
-        t = np.array([xc, yc, 1])
-        t = self.mtx@(t)
+            xc = (B*E-2*C*D)/(4*A*C-B*B)
+            yc = (D*B-2*A*E)/(4*A*C-B*B)
 
-        # publish bearing
-        msg = position_msg()
-        msg.header.stamp = rospy.get_rostime()
-        msg.position = t
-        self.pub_bearing.publish(msg)
+            # find bearing
+            t = np.array([xc, yc, 1])
+            t = self.mtx@(t)
+
+            # publish bearing
+            msg = position_msg()
+            msg.header.stamp = rospy.get_rostime()
+            msg.position = t
+            self.pub_bearing.publish(msg)
+
+        cv2.imshow("stream", frame)
+        cv2.waitKey(1)
 
 def main():
     rospy.init_node('bearing_perception', anonymous=True)
