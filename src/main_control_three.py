@@ -20,7 +20,7 @@ from tf.transformations import quaternion_matrix
 from hardware import Payload, Drone
 
 # util
-from util_PID_control import PID, PID_z
+from util_PID_control import PID, PID_z, PID_single_var
 
 class sWarmup(smach.State):
     def __init__(self):
@@ -170,7 +170,7 @@ class sFlyupOpen(smach.State):
 
         rospy.sleep(duration)
 
-        pub_sm.util_smach('FLYUP_OPEN', 'STABILIZE')
+        pub_sm.util_smach('FLYUP_OPEN', 'HEIGHT_CONTROL')
         return 'flyup_open_finish'
 
 class sHover(smach.State):
@@ -221,10 +221,9 @@ class sRight(smach.State):
         pub_sm.util_smach('RIGHT', 'LAND')
         return 'right_finish'
 
-
-class sStabilizeZ(smach.State):
+class sHeightControl(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['stab_finish'])
+        smach.State.__init__(self, outcomes=['hc_finish'])
 
         # load fly up control pid gain
         kpz = float(rospy.get_param('~height_kpz', "2.0"))
@@ -237,15 +236,19 @@ class sStabilizeZ(smach.State):
 
         # set target height
         height_d = float(rospy.get_param('~height_d', "1.2"))
-        self.pid1.setTarget(height_d)
-        self.pid2.setTarget(height_d)
-        self.pid3.setTarget(height_d)
+        height_tol = float(rospy.get_param('~height_tol', "0.05"))
+        self.pid1.setTarget(height_d, height_tol)
+        self.pid2.setTarget(height_d, height_tol)
+        self.pid3.setTarget(height_d, height_tol)
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state STABILIZE Z')          
+        rospy.loginfo('Executing state HEIGHT CONTROL')          
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
+
+            if (self.pid1.check(sub1.h) and (self.pid2.check(sub2.h)) and (self.pid3.check(sub3.h))):
+                break
             
             u1 = self.pid1.update(sub1.h)
             u2 = self.pid2.update(sub2.h)
@@ -260,9 +263,98 @@ class sStabilizeZ(smach.State):
             pub3.util_cmd(0, 0, u3, 0)
             rate.sleep()
         
-        return 'stab_finish'
+        pub_sm.util_smach('HEIGHT_CONTROL', 'YAW_SEARCH')
+        return 'hc_finish'
 
+class sYawSearch(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['ys_finish'])
 
+        # load pid gain
+        kpz = float(rospy.get_param('~height_kpz', "2.0"))
+        kiz = float(rospy.get_param('~height_kiz', "2.0"))
+        kdz = float(rospy.get_param('~height_kdz', "2.0"))
+        self.pid1z = PID_single_var(kpz, kiz, kdz)
+        self.pid2z = PID_single_var(kpz, kiz, kdz)
+        self.pid3z = PID_single_var(kpz, kiz, kdz)
+
+        kpr = float(rospy.get_param('~yaw_kp', "0.025"))
+        kir = float(rospy.get_param('~yaw_ki', "0.0"))
+        kdr = float(rospy.get_param('~yaw_kd', "0.0"))
+        self.pid1r = PID_single_var(kpr, kir, kdr)
+        self.pid2r = PID_single_var(kpr, kir, kdr)
+        self.pid3r = PID_single_var(kpr, kir, kdr)
+
+        # set target
+        height_d = float(rospy.get_param('~height_d', "1.2"))
+        self.pid1z.setTarget(height_d)
+        self.pid2z.setTarget(height_d)
+        self.pid3z.setTarget(height_d)
+        yaw_tol = float(rospy.get_param('~yaw_tol', "5"))
+        self.pid1r.setTarget(0, yaw_tol)
+        self.pid2r.setTarget(0, yaw_tol)
+        self.pid3r.setTarget(0, yaw_tol)
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state YAW SEARCH')          
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():
+            if ((sub1.bearing is not None) and (sub2.bearing is not None) and (sub3.bearing is not None)):
+                if ((self.pid1r.check(sub1.bearing)) and (self.pid2r.check(sub2.bearing)) and (self.pid3r.check(sub3.bearing))):
+                    break
+            
+            u1z = self.pid1z.update(sub1.h)
+            u2z = self.pid2z.update(sub2.h)
+            u3z = self.pid3z.update(sub3.h)
+
+            pub1.util_h_err(self.pid1z.err)
+            pub2.util_h_err(self.pid2z.err)
+            pub3.util_h_err(self.pid3z.err)
+
+            if sub1.bearing is None:
+                u1r = 0.4
+            else:
+                bearing = sub1.bearing
+                bearing[1] = 0
+                theta = bearing@np.array([0,0,1])
+                theta = theta / np.sqrt(bearing@bearing)
+                theta = np.arccos(theta)*180/np.pi
+                theta = -np.sign(bearing[0]) * theta
+                u1r = self.pid1r.update(theta)
+                pub1.pub_yaw_error(self.pid1r.err)
+
+            if sub2.bearing is None:
+                u2r = 0.4
+            else:
+                bearing = sub2.bearing
+                bearing[1] = 0
+                theta = bearing@np.array([0,0,1])
+                theta = theta / np.sqrt(bearing@bearing)
+                theta = np.arccos(theta)*180/np.pi
+                theta = -np.sign(bearing[0]) * theta
+                u2r = self.pid2r.update(theta)
+                pub2.pub_yaw_error(self.pid2r.err)
+
+            if sub3.bearing is None:
+                u3r = 0.4
+            else:
+                bearing = sub3.bearing
+                bearing[1] = 0
+                theta = bearing@np.array([0,0,1])
+                theta = theta / np.sqrt(bearing@bearing)
+                theta = np.arccos(theta)*180/np.pi
+                theta = -np.sign(bearing[0]) * theta
+                u3r = self.pid3r.update(theta)
+                pub3.pub_yaw_error(self.pid3r.err)
+
+            pub1.util_cmd(0, 0, u1z, u1r)
+            pub2.util_cmd(0, 0, u2z, u2r)
+            pub3.util_cmd(0, 0, u3z, u3r)
+            rate.sleep()
+        
+        pub_sm.util_smach('YAW_SEARCH', 'LAND')
+        return 'ys_finish'
 
 class sLand(smach.State):
     def __init__(self):
@@ -280,37 +372,6 @@ class sLand(smach.State):
         pub3.util_land()
         return 'land_finish'
 
-# class Control():
-#     def __init__(self):        
-#         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
-#         with self.sm_top:
-#             smach.StateMachine.add('WARMUP', sWarmup(), 
-#                 transitions={'warmup_finish':'FLYUP_UNTIL'})
-#             smach.StateMachine.add('FLYUP_UNTIL', sFlyupUntil(), 
-#                 transitions={'flyup_until_finish':'FLYUP_CONTROL', 'flyup_until_error':'control_finish'})
-
-#             self.sm_flyup_control = smach.StateMachine(outcomes=['flyup_control_finish', 'flyup_control_error'])
-#             self.sm_flyup_control.userdata.desired_Ql1 = None
-#             self.sm_flyup_control.userdata.desired_Ql2 = None
-#             self.sm_flyup_control.userdata.desired_Ql3 = None
-#             with self.sm_flyup_control:
-#                 smach.StateMachine.add('WP_ASSIGN', sWpAssign(), 
-#                     transitions={'wp_assigned':'WP_TRACK', 'wp_assign_finish':'flyup_control_finish'},
-#                     remapping={'wp_assign_output1':'desired_Ql1', 'wp_assign_output2':'desired_Ql2', 'wp_assign_output3':'desired_Ql3'})
-#                 smach.StateMachine.add('WP_TRACK', sWpTracking(), 
-#                     transitions={'wp_tracking_success':'WP_ASSIGN', 'wp_tracking_error': 'flyup_control_error'},
-#                     remapping={'wp_tracking_input1':'desired_Ql1', 'wp_tracking_input2':'desired_Ql2', 'wp_tracking_input3':'desired_Ql3'})
-
-#             smach.StateMachine.add('FLYUP_CONTROL', self.sm_flyup_control, 
-#                 transitions={'flyup_control_finish':'LAND', 'flyup_control_error':'control_finish'})
-#             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-#             #     transitions={'flyup_open_finish':'HOVER'})
-#             # smach.StateMachine.add('HOVER', sHover(), 
-#             #     transitions={'hover_finish':'LAND'})
-#             smach.StateMachine.add('LAND', sLand(), 
-#                 transitions={'land_finish':'control_finish'})
-#         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
-#         smach_thread.start()
 
 class Control():
     def __init__(self):        
@@ -322,9 +383,11 @@ class Control():
             #     transitions={'warmup_finish':'LAND'})
 
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-                transitions={'flyup_open_finish':'STABILIZE'})
-            smach.StateMachine.add('STABILIZE', sStabilizeZ(), 
-                transitions={'stab_finish':'LAND'})
+                transitions={'flyup_open_finish':'HEIGHT_CONTROL'})
+            smach.StateMachine.add('HEIGHT_CONTROL', sHeightControl(), 
+                transitions={'hc_finish':'YAW_SEARCH'})
+            smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
+                transitions={'ys_finish':'LAND'})
 
             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
             #     transitions={'flyup_open_finish':'HOVER'})
@@ -354,6 +417,7 @@ class Pubs():
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
         self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_yaw_error = rospy.Publisher('/%s/yaw/error' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -384,6 +448,11 @@ class Pubs():
         msg.position = np.array([0,0,err])
         self.pub_h_error.publish(msg)
 
+    def pub_yaw_error(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = np.array([0,0,err])
+        self.pub_yaw_error.publish(msg)
 
 class PubSm():
     def __init__(self):
@@ -406,11 +475,13 @@ class Subs():
         self.cRm = None
         self.mRl = None
         self.h = 0
+        self.bearing = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_cRm = rospy.Subscriber('/%s/cRm/filtered' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/filtered' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
         self.sub_height = rospy.Subscriber('/%s/height/filtered' % tello_ns, position_msg, self.cb_height, queue_size = 1)
+        self.sub_bearing = rospy.Subscriber('/%s/bearing/local' % tello_ns, position_msg, self.cb_bearing, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
@@ -441,6 +512,8 @@ class Subs():
     def cb_height(self, data):
         self.h = data.position[2]
 
+    def cb_bearing(self, data):
+        self.bearing = np.array(data.position)
 
 def shutdown_hook():
     print("************in shutdown hook*************")

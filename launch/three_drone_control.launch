@@ -22,6 +22,11 @@
 		<param name="height_kiz" value="$(arg height_kiz)" />
 		<param name="height_kdz" value="$(arg height_kdz)" />
 		<param name="height_d" value="$(arg height_d)" />
+		<param name="height_tol" value="$(arg height_tol)" />
+		<param name="yaw_kp" value="$(arg yaw_kp)" />
+		<param name="yaw_ki" value="$(arg yaw_ki)" />
+		<param name="yaw_kd" value="$(arg yaw_kd)" />
+		<param name="yaw_tol" value="$(arg yaw_tol)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
@@ -42,6 +47,8 @@
 	/$(arg tello1_ns)/Ql/filtered  
 	/$(arg tello1_ns)/cRm/raw 
 	/$(arg tello1_ns)/cRm/filtered 
+	/$(arg tello1_ns)/bearing/local 
+	/$(arg tello1_ns)/yaw/error 
 	/$(arg tello1_ns)/height/raw 
 	/$(arg tello1_ns)/height/filtered 
 	/$(arg tello1_ns)/height/error 
@@ -60,6 +67,8 @@
 	/$(arg tello2_ns)/Ql/filtered  
 	/$(arg tello2_ns)/cRm/raw 
 	/$(arg tello2_ns)/cRm/filtered 
+	/$(arg tello2_ns)/bearing/local 
+	/$(arg tello2_ns)/yaw/error 
 	/$(arg tello2_ns)/height/raw 
 	/$(arg tello2_ns)/height/filtered 
 	/$(arg tello2_ns)/height/error 
@@ -78,6 +87,8 @@
 	/$(arg tello3_ns)/Ql/filtered  
 	/$(arg tello3_ns)/cRm/raw 
 	/$(arg tello3_ns)/cRm/filtered 
+	/$(arg tello3_ns)/bearing/local 
+	/$(arg tello3_ns)/yaw/error 
 	/$(arg tello3_ns)/height/raw 
 	/$(arg tello3_ns)/height/filtered 
 	/$(arg tello3_ns)/height/error
