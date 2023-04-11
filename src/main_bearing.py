@@ -21,7 +21,7 @@ class Bearing():
         self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb_image, queue_size = 1)
 
         # [pub]
-        self.pub_bearing = rospy.Publisher('/%s/bearing' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_bearing = rospy.Publisher('/%s/bearing/local' % self.tello_ns, position_msg, queue_size=1)
 
     def cb_image(self, img):
         # cvBridge

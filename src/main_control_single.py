@@ -336,7 +336,7 @@ class Pubs():
         self.pub_smach = rospy.Publisher('/state_transition', state_machine_msg, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
         self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
-        self.pub_bearing_error = rospy.Publisher('/%s/bearing/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_error = rospy.Publisher('/%s/yaw/error' % tello_ns, position_msg, queue_size=1)
 
         rospy.on_shutdown(self.shutdown_hook)
 
@@ -407,7 +407,7 @@ class Subs():
         self.sub_cRm = rospy.Subscriber('/%s/cRm/raw' % tello_ns, cRm_msg, self.cb_cRm, queue_size = 1)
         self.sub_Ql = rospy.Subscriber('/%s/Ql/raw' % tello_ns, position_msg, self.cb_Ql, queue_size = 1)
         self.sub_height = rospy.Subscriber('/%s/height/filtered' % tello_ns, position_msg, self.cb_height, queue_size = 1)
-        self.sub_bearing = rospy.Subscriber('/%s/bearing' % tello_ns, position_msg, self.cb_bearing, queue_size = 1)
+        self.sub_bearing = rospy.Subscriber('/%s/bearing/local' % tello_ns, position_msg, self.cb_bearing, queue_size = 1)
 
     def cb_odom(self, odom):
         pos = odom.pose.pose.position
