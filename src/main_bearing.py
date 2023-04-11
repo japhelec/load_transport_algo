@@ -98,7 +98,7 @@ class Bearing():
                 msg.position = t
                 self.pub_bearing.publish(msg)
 
-        cv2.imshow("stream", frame)
+        cv2.imshow(self.tello_ns, frame)
         cv2.waitKey(1)
 
 def main():

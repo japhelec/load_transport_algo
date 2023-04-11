@@ -301,7 +301,7 @@ class sYawSearch(smach.State):
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
             if ((sub1.bearing is not None) and (sub2.bearing is not None) and (sub3.bearing is not None)):
-                if ((self.pid1r.check(sub1.bearing)) and (self.pid2r.check(sub2.bearing)) and (self.pid3r.check(sub3.bearing))):
+                if ((self.pid1r.check(self.bearing2theta(sub1.bearing))) and (self.pid2r.check(self.bearing2theta(sub1.bearing))) and (self.pid3r.check(self.bearing2theta(sub1.bearing)))):
                     break
             
             u1z = self.pid1z.update(sub1.h)
@@ -316,37 +316,25 @@ class sYawSearch(smach.State):
                 u1r = 0.4
             else:
                 bearing = sub1.bearing
-                bearing[1] = 0
-                theta = bearing@np.array([0,0,1])
-                theta = theta / np.sqrt(bearing@bearing)
-                theta = np.arccos(theta)*180/np.pi
-                theta = -np.sign(bearing[0]) * theta
+                theta = self.bearing2theta(bearing)
                 u1r = self.pid1r.update(theta)
-                pub1.pub_yaw_error(self.pid1r.err)
+                pub1.util_yaw_error(self.pid1r.err)
 
             if sub2.bearing is None:
                 u2r = 0.4
             else:
                 bearing = sub2.bearing
-                bearing[1] = 0
-                theta = bearing@np.array([0,0,1])
-                theta = theta / np.sqrt(bearing@bearing)
-                theta = np.arccos(theta)*180/np.pi
-                theta = -np.sign(bearing[0]) * theta
+                theta = self.bearing2theta(bearing)
                 u2r = self.pid2r.update(theta)
-                pub2.pub_yaw_error(self.pid2r.err)
+                pub2.util_yaw_error(self.pid2r.err)
 
             if sub3.bearing is None:
                 u3r = 0.4
             else:
                 bearing = sub3.bearing
-                bearing[1] = 0
-                theta = bearing@np.array([0,0,1])
-                theta = theta / np.sqrt(bearing@bearing)
-                theta = np.arccos(theta)*180/np.pi
-                theta = -np.sign(bearing[0]) * theta
+                theta = self.bearing2theta(bearing)
                 u3r = self.pid3r.update(theta)
-                pub3.pub_yaw_error(self.pid3r.err)
+                pub3.util_yaw_error(self.pid3r.err)
 
             pub1.util_cmd(0, 0, u1z, u1r)
             pub2.util_cmd(0, 0, u2z, u2r)
@@ -355,6 +343,15 @@ class sYawSearch(smach.State):
         
         pub_sm.util_smach('YAW_SEARCH', 'LAND')
         return 'ys_finish'
+
+    def bearing2theta(self, bearing):
+        bearing[1] = 0
+        theta = bearing@np.array([0,0,1])
+        theta = theta / np.sqrt(bearing@bearing)
+        theta = np.arccos(theta)*180/np.pi
+        theta = -np.sign(bearing[0]) * theta
+
+        return theta
 
 class sLand(smach.State):
     def __init__(self):
@@ -448,7 +445,7 @@ class Pubs():
         msg.position = np.array([0,0,err])
         self.pub_h_error.publish(msg)
 
-    def pub_yaw_error(self, err):
+    def util_yaw_error(self, err):
         msg = position_msg()
         msg.header.stamp = rospy.get_rostime()
         msg.position = np.array([0,0,err])
