@@ -31,8 +31,17 @@ class Bearing():
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # lower bound and upper bound for Green color
-        lower_bound = np.array([107, 133, -4])
-        upper_bound = np.array([132, 243, 230])
+        # C is orange, D is green, E is blue
+        # C track green, D track blue, E track orange
+        if self.tello_ns == "tello_C":
+            lower_bound = np.array([63, 77, 14])	 
+            upper_bound = np.array([86, 156, 201])
+        elif self.tello_ns == "tello_D":
+            lower_bound = np.array([107, 133, -4])
+            upper_bound = np.array([132, 243, 230])
+        elif self.tello_ns == "tello_E":
+            lower_bound = np.array([3, 150, 135])	 
+            upper_bound = np.array([26, 265, 265])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
@@ -45,7 +54,7 @@ class Bearing():
             area = cv2.contourArea(contour)
 
             
-            if area > 50:
+            if area > 100:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
                 # formulate D matrix

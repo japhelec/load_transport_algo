@@ -238,8 +238,8 @@ class sStabilize(smach.State):
 
         # load fly up control pid gain
         kp_yaw = float(rospy.get_param('~yaw_kp', "0.025"))
-        ki_yaw = 0
-        kd_yaw = 0
+        ki_yaw = float(rospy.get_param('~yaw_ki', "0.025"))
+        kd_yaw = float(rospy.get_param('~yaw_kd', "0.025"))
 
         self.pid_yaw = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
 
