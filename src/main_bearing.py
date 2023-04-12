@@ -37,8 +37,10 @@ class Bearing():
             lower_bound = np.array([63, 77, 14])	 
             upper_bound = np.array([86, 156, 201])
         elif self.tello_ns == "tello_D":
-            lower_bound = np.array([107, 133, -4])
-            upper_bound = np.array([132, 243, 230])
+            # lower_bound = np.array([107, 133, -4])
+            # upper_bound = np.array([132, 243, 230])
+            lower_bound = np.array([115, 153, 1])	 
+            upper_bound = np.array([146, 242, 152])
         elif self.tello_ns == "tello_E":
             lower_bound = np.array([3, 150, 135])	 
             upper_bound = np.array([26, 265, 265])
@@ -54,7 +56,7 @@ class Bearing():
             area = cv2.contourArea(contour)
 
             
-            if area > 100:
+            if area > 500:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
                 # formulate D matrix

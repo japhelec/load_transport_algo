@@ -256,15 +256,14 @@ class sStabilize(smach.State):
             bearing = subs.bearing
 
             if bearing is None:
-                continue
-
-            bearing[1] = 0
-            theta = bearing@np.array([0,0,1])
-            theta = theta / np.sqrt(bearing@bearing)
-            theta = np.arccos(theta)*180/np.pi
-            theta = -np.sign(bearing[0]) * theta
-
-            u = self.pid_yaw.update(theta)
+                u = 0.4
+            else:
+                bearing[1] = 0
+                theta = bearing@np.array([0,0,1])
+                theta = theta / np.sqrt(bearing@bearing)
+                theta = np.arccos(theta)*180/np.pi
+                theta = -np.sign(bearing[0]) * theta
+                u = self.pid_yaw.update(theta)
 
             pubs.util_bearing_err(self.pid_yaw.err)
             pubs.util_cmd(0, 0, 0, u)
