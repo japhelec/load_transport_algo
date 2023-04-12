@@ -173,6 +173,23 @@ class sFlyupOpen(smach.State):
         pub_sm.util_smach('FLYUP_OPEN', 'HEIGHT_CONTROL')
         return 'flyup_open_finish'
 
+class sTakeoff(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['takeoff_finish'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state TAKEOFF')
+        
+        pub1.util_takeoff()
+        pub2.util_takeoff()
+        pub3.util_takeoff()
+
+        rospy.sleep(7.0)
+
+        pub_sm.util_smach('TAKEOFF', 'YAW_SEARCH')
+        return 'takeoff_finish'
+
+
 class sHover(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['hover_finish'])
@@ -353,6 +370,9 @@ class sYawSearch(smach.State):
 
         return theta
 
+
+
+
 class sLand(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['land_finish'])
@@ -374,15 +394,19 @@ class Control():
     def __init__(self):        
         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
         with self.sm_top:
+            # smach.StateMachine.add('WARMUP', sWarmup(), 
+            #     transitions={'warmup_finish':'FLYUP_OPEN'})
             smach.StateMachine.add('WARMUP', sWarmup(), 
-                transitions={'warmup_finish':'FLYUP_OPEN'})
+                transitions={'warmup_finish':'TAKEOFF'})
+            smach.StateMachine.add('TAKEOFF', sTakeoff(), 
+                transitions={'takeoff_finish':'YAW_SEARCH'})
             # smach.StateMachine.add('WARMUP', sWarmup(), 
             #     transitions={'warmup_finish':'LAND'})
 
-            smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-                transitions={'flyup_open_finish':'HEIGHT_CONTROL'})
-            smach.StateMachine.add('HEIGHT_CONTROL', sHeightControl(), 
-                transitions={'hc_finish':'YAW_SEARCH'})
+            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+            #     transitions={'flyup_open_finish':'HEIGHT_CONTROL'})
+            # smach.StateMachine.add('HEIGHT_CONTROL', sHeightControl(), 
+            #     transitions={'hc_finish':'YAW_SEARCH'})
             smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
                 transitions={'ys_finish':'LAND'})
 
@@ -410,6 +434,7 @@ class Pubs():
     def __init__(self, tello_ns):
         # publisher
         self.pub_motor_on = rospy.Publisher('/%s/manual_takeoff' % tello_ns, Empty, queue_size=1)
+        self.pub_takeoff = rospy.Publisher('/%s/takeoff' % tello_ns, Empty, queue_size=1)
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
@@ -426,6 +451,9 @@ class Pubs():
 
     def util_motor_on(self):
         self.pub_motor_on.publish()
+
+    def util_takeoff(self):
+        self.pub_takeoff.publish()
 
     def util_hover(self):
         self.util_cmd(0,0,0,0)
