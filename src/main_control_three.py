@@ -34,7 +34,7 @@ class sWarmup(smach.State):
         pub2.util_motor_on()
         pub3.util_motor_on()
         rospy.sleep(5.0)
-        pub_sm.util_smach('WARM_UP', 'FLYUP_UNTIL')
+        pub_sm.util_smach('WARM_UP', 'FLYUP_OPEN')
         return 'warmup_finish'
 
 class sFlyupUntil(smach.State):
@@ -313,7 +313,11 @@ class sYawSearch(smach.State):
         self.pid3r.setTarget(0, yaw_tol)
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state YAW SEARCH')          
+        rospy.loginfo('Executing state YAW SEARCH')   
+
+        sub1.bearing = None
+        sub2.bearing = None
+        sub3.bearing = None
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
@@ -353,12 +357,15 @@ class sYawSearch(smach.State):
                 u3r = self.pid3r.update(theta)
                 pub3.util_yaw_error(self.pid3r.err)
 
-            pub1.util_cmd(0, 0, u1z, u1r)
-            pub2.util_cmd(0, 0, u2z, u2r)
-            pub3.util_cmd(0, 0, u3z, u3r)
+            # pub1.util_cmd(0, 0, u1z, u1r)
+            # pub2.util_cmd(0, 0, u2z, u2r)
+            # pub3.util_cmd(0, 0, u3z, u3r)
+            pub1.util_cmd(0, 0, 0, u1r)
+            pub2.util_cmd(0, 0, 0, u2r)
+            pub3.util_cmd(0, 0, 0, u3r)
             rate.sleep()
         
-        pub_sm.util_smach('YAW_SEARCH', 'LAND')
+        pub_sm.util_smach('YAW_SEARCH', 'FORMATION_CONTROL')
         return 'ys_finish'
 
     def bearing2theta(self, bearing):
@@ -370,8 +377,113 @@ class sYawSearch(smach.State):
 
         return theta
 
+class sFormationControl(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fc_finish'])
 
+        # load pid gain
+        kpr = float(rospy.get_param('~yaw_kp', "0.025"))
+        kir = float(rospy.get_param('~yaw_ki', "0.0"))
+        kdr = float(rospy.get_param('~yaw_kd', "0.0"))
+        self.pid1r = PID_single_var(kpr, kir, kdr)
+        self.pid2r = PID_single_var(kpr, kir, kdr)
+        self.pid3r = PID_single_var(kpr, kir, kdr)
 
+        # set target
+        yaw_tol = float(rospy.get_param('~yaw_tol', "5"))
+        self.pid1r.setTarget(0)
+        self.pid2r.setTarget(0)
+        self.pid3r.setTarget(0)
+
+        d1 = -90*np.pi/180
+        self.bg1_d = np.array([[np.cos(d1),-np.sin(d1),0],[np.sin(d1),np.cos(d1),0],[0,0,1]])@(Drone.bRcForward)@(Drone.camTilt)@np.array([0, -0.277, 1])
+        d2 = 30*np.pi/180
+        self.bg2_d = np.array([[np.cos(d2),-np.sin(d2),0],[np.sin(d2),np.cos(d2),0],[0,0,1]])@(Drone.bRcForward)@(Drone.camTilt)@np.array([0, -0.277, 1])
+        d3 = 150*np.pi/180
+        self.bg3_d = np.array([[np.cos(d3),-np.sin(d3),0],[np.sin(d3),np.cos(d3),0],[0,0,1]])@(Drone.bRcForward)@(Drone.camTilt)@np.array([0, -0.277, 1])
+
+        # print("=================")
+        # print(self.bg1_d)
+        # print(self.bg2_d)
+        # print(self.bg3_d)
+        # print("=================")
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state FORMATION CONTROL')          
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():           
+            # yaw control
+            bl1 = sub1.bearing
+            theta = self.bearing2theta(bl1)
+            u1r = self.pid1r.update(theta)
+            pub1.util_yaw_error(self.pid1r.err)
+
+            bl2 = sub2.bearing
+            theta = self.bearing2theta(bl2)
+            u2r = self.pid2r.update(theta)
+            pub2.util_yaw_error(self.pid2r.err)
+
+            bl3 = sub3.bearing
+            theta = self.bearing2theta(bl3)
+            u3r = self.pid3r.update(theta)
+            pub3.util_yaw_error(self.pid3r.err)
+
+            # formation control
+            bg1 = (sub1.iRb)@(Drone.bRcForward)@(Drone.camTilt)@bl1
+            bg2 = (sub2.iRb)@(Drone.bRcForward)@(Drone.camTilt)@bl2
+            bg3 = (sub3.iRb)@(Drone.bRcForward)@(Drone.camTilt)@bl3
+            pub1.util_bearing_global(bg1)
+            pub2.util_bearing_global(bg2)
+            pub3.util_bearing_global(bg3)
+            
+            err1 = self.bearingDiff(bg1, self.bg1_d)
+            err2 = self.bearingDiff(bg2, self.bg2_d)
+            err3 = self.bearingDiff(bg3, self.bg3_d)
+            pub1.util_bearing_error(err1)
+            pub2.util_bearing_error(err2)
+            pub3.util_bearing_error(err3)
+
+            # if ((err1 < 0.08) and (err2 < 0.08) and (err3 < 0.08)):
+            #     break
+
+            K = 0.3
+            # u1 = self.bg1_d - bg1
+            # u1[0] = u1[0]*K
+            # u1[1] = u1[1]*K
+            # u2 = self.bg2_d - bg2
+            # u2[0] = u2[0]*K
+            # u2[1] = u2[1]*K
+            # u3 = self.bg3_d - bg3
+            # u3[0] = u3[0]*K
+            # u3[1] = u3[1]*K
+            u1 = K*(self.bg1_d - bg1)
+            u2 = K*(self.bg2_d - bg2)
+            u3 = K*(self.bg3_d - bg3)
+            u1 = (sub1.iRb.T)@u1
+            u2 = (sub2.iRb.T)@u2
+            u3 = (sub3.iRb.T)@u3
+
+            pub1.util_cmd(u1[0], u1[1], u1[2], u1r)
+            pub2.util_cmd(u2[0], u2[1], u2[2], u2r)
+            pub3.util_cmd(u3[0], u3[1], u3[2], u3r)
+            rate.sleep()
+        
+        pub_sm.util_smach('FORMATION_CONTROL', 'LAND')
+        return 'fc_finish'
+
+    def bearing2theta(self, bearing):
+        bearing[1] = 0
+        theta = bearing@np.array([0,0,1])
+        theta = theta / np.sqrt(bearing@bearing)
+        theta = np.arccos(theta)*180/np.pi
+        theta = -np.sign(bearing[0]) * theta
+
+        return theta
+
+    def bearingDiff(self, bgd, bg):
+        theta = bgd@bg/(np.linalg.norm(bgd)*np.linalg.norm(bg))
+        return theta
 
 class sLand(smach.State):
     def __init__(self):
@@ -389,17 +501,16 @@ class sLand(smach.State):
         pub3.util_land()
         return 'land_finish'
 
-
 class Control():
     def __init__(self):        
         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
         with self.sm_top:
-            # smach.StateMachine.add('WARMUP', sWarmup(), 
-            #     transitions={'warmup_finish':'FLYUP_OPEN'})
             smach.StateMachine.add('WARMUP', sWarmup(), 
-                transitions={'warmup_finish':'TAKEOFF'})
-            smach.StateMachine.add('TAKEOFF', sTakeoff(), 
-                transitions={'takeoff_finish':'YAW_SEARCH'})
+                transitions={'warmup_finish':'FLYUP_OPEN'})
+            # smach.StateMachine.add('WARMUP', sWarmup(), 
+            #     transitions={'warmup_finish':'TAKEOFF'})
+            # smach.StateMachine.add('TAKEOFF', sTakeoff(), 
+            #     transitions={'takeoff_finish':'YAW_SEARCH'})
             # smach.StateMachine.add('WARMUP', sWarmup(), 
             #     transitions={'warmup_finish':'LAND'})
 
@@ -407,8 +518,14 @@ class Control():
             #     transitions={'flyup_open_finish':'HEIGHT_CONTROL'})
             # smach.StateMachine.add('HEIGHT_CONTROL', sHeightControl(), 
             #     transitions={'hc_finish':'YAW_SEARCH'})
+            smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+                transitions={'flyup_open_finish':'YAW_SEARCH'})
+            # smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
+                # transitions={'ys_finish':'LAND'})
             smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-                transitions={'ys_finish':'LAND'})
+                transitions={'ys_finish':'FORMATION_CONTROL'})
+            smach.StateMachine.add('FORMATION_CONTROL', sFormationControl(), 
+                transitions={'fc_finish':'LAND'})
 
             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
             #     transitions={'flyup_open_finish':'HOVER'})
@@ -440,6 +557,8 @@ class Pubs():
         self.pub_Ql_error = rospy.Publisher('/%s/Ql/error' % tello_ns, position_msg, queue_size=1)
         self.pub_h_error = rospy.Publisher('/%s/height/error' % tello_ns, position_msg, queue_size=1)
         self.pub_yaw_error = rospy.Publisher('/%s/yaw/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_error = rospy.Publisher('/%s/bearing/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_global = rospy.Publisher('/%s/bearing/global' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
         msg = Twist()
@@ -478,6 +597,19 @@ class Pubs():
         msg.header.stamp = rospy.get_rostime()
         msg.position = np.array([0,0,err])
         self.pub_yaw_error.publish(msg)
+
+    def util_bearing_error(self, err):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = np.array([0,0,err])
+        self.pub_bearing_error.publish(msg)
+
+    def util_bearing_global(self, b):
+        msg = position_msg()
+        msg.header.stamp = rospy.get_rostime()
+        msg.position = b
+        self.pub_bearing_global.publish(msg)
+
 
 class PubSm():
     def __init__(self):

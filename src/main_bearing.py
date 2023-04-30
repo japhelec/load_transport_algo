@@ -54,7 +54,6 @@ class Bearing():
         if len(contours) > 0:
             contour = max(contours, key = len)
             area = cv2.contourArea(contour)
-
             
             if area > 500:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)

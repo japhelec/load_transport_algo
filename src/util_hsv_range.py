@@ -23,7 +23,7 @@ def main():
     import sys
     global image_hsv, pixel # so we can use it in mouse callback
 
-    image_src = cv2.imread("/home/kuei/catkin_ws/src/load_transport/src/pic1.png")  # pick.py my.png
+    image_src = cv2.imread("/home/kuei/catkin_ws/src/load_transport/src/bearing_detect/pic1.png")  # pick.py my.png
     if image_src is None:
         print ("the image read is None............")
         return

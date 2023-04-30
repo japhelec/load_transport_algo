@@ -42,6 +42,18 @@ class Marker:
     length = 0.095 #m
 
 class Drone:
+    camTilt = np.array([
+        [1,0,0],
+        [0,np.cos(np.pi/18),np.sin(np.pi/18)],
+        [0,-np.sin(np.pi/18),np.cos(np.pi/18)]
+    ])
+
+    bRcForward = np.array([
+        [1,0,0],
+        [0,0,1],
+        [0,-1,0]
+    ])
+
     @staticmethod
     def bRc(drone_id):
         if drone_id == "tello_601":
