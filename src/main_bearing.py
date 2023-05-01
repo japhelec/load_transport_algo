@@ -22,6 +22,7 @@ class Bearing():
 
         # [pub]
         self.pub_bearing = rospy.Publisher('/%s/bearing/local' % self.tello_ns, position_msg, queue_size=1)
+        self.first = True
 
     def cb_image(self, img):
         # cvBridge
@@ -58,16 +59,28 @@ class Bearing():
             if area > 500:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
-                # formulate D matrix
+                # contour points back to camera frame
                 sh = contour.shape
                 c = contour.reshape(sh[0], sh[2])
                 del contour
+                
                 cx = c[:,0]
                 cx = cx[:, None]
                 cy = c[:,1]
                 cy = cy[:, None]
-                
-                D = np.hstack((cx**2,cx*cy, cy**2, c, np.ones((sh[0], 1))))
+
+                aux = np.hstack((cx,cy, np.ones((sh[0], 1))))
+                aux = self.mtx@(aux.T)
+                aux = aux.T
+
+                # formulate D matrix
+                cx = aux[:,0]
+                cx = cx[:, None]
+                cy = aux[:,1]
+                cy = cy[:, None]
+                del aux
+
+                D = np.hstack((cx**2,cx*cy, cy**2, cx, cy, np.ones((sh[0], 1))))
                 del c
                 del cx
                 del cy
@@ -86,17 +99,40 @@ class Bearing():
                 F = A[5]
                 A = A[0]
 
-                xc = (B*E-2*C*D)/(4*A*C-B*B)
-                yc = (D*B-2*A*E)/(4*A*C-B*B)
+                Q = np.array([
+                    [A, B/2, D/2],
+                    [B/2, C, E/2],
+                    [D/2, E/2, F]
+                ])
 
-                # find bearing
-                t = np.array([xc, yc, 1])
-                t = self.mtx@(t)
+                # eigen
+                w, vr = eig(Q)
+                if ((0 < w).sum()) != 2:
+                    return
+
+                sorted_indexes = np.argsort(w)
+                w = w[sorted_indexes]
+                vr = vr[:,sorted_indexes]
+                # print("==============")
+                # print(vr)
+
+                l2 = w[0]
+                l0 = w[1]
+                l1 = w[2]
+
+                q2 = vr[:, 0]
+                q0 = vr[:, 1]
+                q1 = vr[:, 2]
+
+                t = l2*np.sqrt((l1-l0)/(l1-l2))*q1 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
+                t = 0.02*t/np.sqrt(-l1*l2)
+                # print(q0)
+                # print(t)
 
                 # publish bearing
                 msg = position_msg()
                 msg.header.stamp = rospy.get_rostime()
-                msg.position = t
+                msg.position = t.real
                 self.pub_bearing.publish(msg)
 
         cv2.imshow(self.tello_ns, frame)
