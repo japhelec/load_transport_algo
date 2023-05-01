@@ -7,7 +7,11 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
 
 from load_transport.msg import position_msg
+from nav_msgs.msg import Odometry
 from scipy.linalg import eig
+from hardware import Drone
+from tf.transformations import quaternion_matrix
+
 
 class Bearing():
     def __init__(self):      
@@ -16,13 +20,15 @@ class Bearing():
         self.mtx = np.linalg.inv(np.array([[929.562627  , 0.      ,   487.474037],
         [  0.       ,  928.604856, 361.165223],
         [  0.,           0.,           1.        ]]))
+        self.iRb = None
 
         # [sub]
         self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb_image, queue_size = 1)
+        self.sub_odom = rospy.Subscriber('/%s/odom' % self.tello_ns, Odometry, self.cb_odom, queue_size = 1)
 
         # [pub]
-        self.pub_bearing = rospy.Publisher('/%s/bearing/local' % self.tello_ns, position_msg, queue_size=1)
-        self.first = True
+        self.pub_bearing_local = rospy.Publisher('/%s/bearing/local' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_global = rospy.Publisher('/%s/bearing/global' % self.tello_ns, position_msg, queue_size=1)
 
     def cb_image(self, img):
         # cvBridge
@@ -113,8 +119,6 @@ class Bearing():
                 sorted_indexes = np.argsort(w)
                 w = w[sorted_indexes]
                 vr = vr[:,sorted_indexes]
-                # print("==============")
-                # print(vr)
 
                 l2 = w[0]
                 l0 = w[1]
@@ -124,19 +128,42 @@ class Bearing():
                 q0 = vr[:, 1]
                 q1 = vr[:, 2]
 
-                t = l2*np.sqrt((l1-l0)/(l1-l2))*q1 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
-                t = 0.02*t/np.sqrt(-l1*l2)
-                # print(q0)
-                # print(t)
+                # bearing in {C}
+                bc = l2*np.sqrt((l1-l0)/(l1-l2))*q1 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
+                bc = 0.02*bc/np.sqrt(-l1*l2)
+                bc = bc.real
 
-                # publish bearing
                 msg = position_msg()
                 msg.header.stamp = rospy.get_rostime()
-                msg.position = t.real
-                self.pub_bearing.publish(msg)
+                msg.position = bc
+                self.pub_bearing_local.publish(msg)
+
+                # bearing in {W}
+                if self.iRb is None:
+                    return
+                bw = (self.iRb)@(Drone.bRcForward)@(Drone.camTilt)@bc
+
+                msg = position_msg()
+                msg.header.stamp = rospy.get_rostime()
+                msg.position = bw
+                self.pub_bearing_global.publish(msg)
+                
 
         cv2.imshow(self.tello_ns, frame)
         cv2.waitKey(1)
+
+    def cb_odom(self, odom):
+        orien = odom.pose.pose.orientation
+        
+        rotm = quaternion_matrix([orien.x, orien.y, orien.z, orien.w])  # x, y, z, w;   quaternion is w + xi + yj + zk
+        rotm = np.array(rotm)
+        rotm = rotm[0:3, 0:3]
+        Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])  # rotate along x 180
+        Rz_p = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) # rotate along z 90
+        Rz_n = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]) # rotate along z -90
+        rotm = Rz_p.dot(Rx.dot(rotm.dot(Rx.dot(Rz_n)))) # Rz_p -> Rx -> rotm -> Rx -> Rz_n
+
+        self.iRb = rotm
 
 def main():
     rospy.init_node('bearing_perception', anonymous=True)
