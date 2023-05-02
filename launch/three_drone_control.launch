@@ -4,25 +4,13 @@
 		<param name="tello1_ns" value="$(arg tello1_ns)" />
 		<param name="tello2_ns" value="$(arg tello2_ns)" />
 		<param name="tello3_ns" value="$(arg tello3_ns)" />
-		<param name="flyup_kpx" value="$(arg flyup_kpx)" />
-		<param name="flyup_kpy" value="$(arg flyup_kpy)" />
-		<param name="flyup_kpz" value="$(arg flyup_kpz)" />
-		<param name="flyup_kix" value="$(arg flyup_kix)" />
-		<param name="flyup_kiy" value="$(arg flyup_kiy)" />
-		<param name="flyup_kiz" value="$(arg flyup_kiz)" />
-		<param name="flyup_kdx" value="$(arg flyup_kdx)" />
-		<param name="flyup_kdy" value="$(arg flyup_kdy)" />
-		<param name="flyup_kdz" value="$(arg flyup_kdz)" />
-		<param name="flyup_tol" value="$(arg flyup_tol)" />
 		<param name="lift_thrust_01" value="$(arg lift_thrust_01)" />
 		<param name="lift_thrust_02" value="$(arg lift_thrust_02)" />
 		<param name="lift_thrust_03" value="$(arg lift_thrust_03)" />
 		<param name="lift_duration" value="$(arg lift_duration)" />
-		<param name="height_kpz" value="$(arg height_kpz)" />
-		<param name="height_kiz" value="$(arg height_kiz)" />
-		<param name="height_kdz" value="$(arg height_kdz)" />
-		<param name="height_d" value="$(arg height_d)" />
-		<param name="height_tol" value="$(arg height_tol)" />
+		<param name="pitch_kp" value="$(arg pitch_kp)" />
+		<param name="pitch_ki" value="$(arg pitch_ki)" />
+		<param name="pitch_kd" value="$(arg pitch_kd)" />
 		<param name="yaw_kp" value="$(arg yaw_kp)" />
 		<param name="yaw_ki" value="$(arg yaw_ki)" />
 		<param name="yaw_kd" value="$(arg yaw_kd)" />
@@ -40,18 +28,11 @@
 	/$(arg tello1_ns)/imu 
 	/$(arg tello1_ns)/odom 
 	/$(arg tello1_ns)/status 
-	/$(arg tello1_ns)/Mc/raw 
-	/$(arg tello1_ns)/Mc/filtered 
-	/$(arg tello1_ns)/Ql/raw 
-	/$(arg tello1_ns)/Ql/error 
-	/$(arg tello1_ns)/Ql/filtered  
-	/$(arg tello1_ns)/cRm/raw 
-	/$(arg tello1_ns)/cRm/filtered 
 	/$(arg tello1_ns)/bearing/local 
+	/$(arg tello1_ns)/bearing/global 
+	/$(arg tello1_ns)/bearing/error 
+	/$(arg tello1_ns)/pitch/error 
 	/$(arg tello1_ns)/yaw/error 
-	/$(arg tello1_ns)/height/raw 
-	/$(arg tello1_ns)/height/filtered 
-	/$(arg tello1_ns)/height/error 
 	/$(arg tello2_ns)/cmd_vel 
 	/$(arg tello2_ns)/land 
 	/$(arg tello2_ns)/manual_takeoff 
@@ -60,18 +41,11 @@
 	/$(arg tello2_ns)/imu 
 	/$(arg tello2_ns)/odom 
 	/$(arg tello2_ns)/status 
-	/$(arg tello2_ns)/Mc/raw 
-	/$(arg tello2_ns)/Mc/filtered 
-	/$(arg tello2_ns)/Ql/raw 
-	/$(arg tello2_ns)/Ql/error 
-	/$(arg tello2_ns)/Ql/filtered  
-	/$(arg tello2_ns)/cRm/raw 
-	/$(arg tello2_ns)/cRm/filtered 
 	/$(arg tello2_ns)/bearing/local 
+	/$(arg tello2_ns)/bearing/global 
+	/$(arg tello2_ns)/bearing/error 
+	/$(arg tello2_ns)/pitch/error 
 	/$(arg tello2_ns)/yaw/error 
-	/$(arg tello2_ns)/height/raw 
-	/$(arg tello2_ns)/height/filtered 
-	/$(arg tello2_ns)/height/error 
 	/$(arg tello3_ns)/cmd_vel 
 	/$(arg tello3_ns)/land 
 	/$(arg tello3_ns)/manual_takeoff 
@@ -80,17 +54,10 @@
 	/$(arg tello3_ns)/imu 
 	/$(arg tello3_ns)/odom 
 	/$(arg tello3_ns)/status 
-	/$(arg tello3_ns)/Mc/raw 
-	/$(arg tello3_ns)/Mc/filtered 
-	/$(arg tello3_ns)/Ql/raw 
-	/$(arg tello3_ns)/Ql/error 
-	/$(arg tello3_ns)/Ql/filtered  
-	/$(arg tello3_ns)/cRm/raw 
-	/$(arg tello3_ns)/cRm/filtered 
 	/$(arg tello3_ns)/bearing/local 
-	/$(arg tello3_ns)/yaw/error 
-	/$(arg tello3_ns)/height/raw 
-	/$(arg tello3_ns)/height/filtered 
-	/$(arg tello3_ns)/height/error
+	/$(arg tello3_ns)/bearing/global 
+	/$(arg tello3_ns)/bearing/error 
+	/$(arg tello3_ns)/pitch/error 
+	/$(arg tello3_ns)/yaw/error
 	"/>
 </launch>

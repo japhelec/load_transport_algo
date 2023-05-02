@@ -41,16 +41,16 @@ class Bearing():
         # C is orange, D is green, E is blue
         # C track green, D track blue, E track orange
         if self.tello_ns == "tello_C":
-            lower_bound = np.array([63, 77, 14])	 
-            upper_bound = np.array([86, 156, 201])
+            lower_bound = np.array([115, 153, 1])	 
+            upper_bound = np.array([146, 242, 152])
         elif self.tello_ns == "tello_D":
             # lower_bound = np.array([107, 133, -4])
             # upper_bound = np.array([132, 243, 230])
-            lower_bound = np.array([115, 153, 1])	 
-            upper_bound = np.array([146, 242, 152])
-        elif self.tello_ns == "tello_A":
             lower_bound = np.array([3, 150, 135])	 
             upper_bound = np.array([26, 265, 265])
+        elif self.tello_ns == "tello_A":
+            lower_bound = np.array([63, 77, 14])	 
+            upper_bound = np.array([86, 156, 201])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
