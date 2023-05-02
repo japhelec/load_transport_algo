@@ -91,30 +91,10 @@ class Bearing():
                 del cx
                 del cy
 
-                # find ellipse 
+                # find ellipse and eigen
                 F = D.T@D
                 del D
-                
-                w, vr = eig(F)
-                A = vr[:, np.argmin(w)]
-
-                B = A[1]
-                C = A[2]
-                D = A[3]
-                E = A[4]
-                F = A[5]
-                A = A[0]
-
-                Q = np.array([
-                    [A, B/2, D/2],
-                    [B/2, C, E/2],
-                    [D/2, E/2, F]
-                ])
-
-                # eigen
-                w, vr = eig(Q)
-                if ((0 < w).sum()) != 2:
-                    return
+                w, vr = self.elpMtxQ(F)
 
                 sorted_indexes = np.argsort(w)
                 w = w[sorted_indexes]
@@ -164,6 +144,30 @@ class Bearing():
         rotm = Rz_p.dot(Rx.dot(rotm.dot(Rx.dot(Rz_n)))) # Rz_p -> Rx -> rotm -> Rx -> Rz_n
 
         self.iRb = rotm
+
+    def elpMtxQ(self, F):
+        w, vr = eig(F)
+        A = vr[:, np.argmin(w)]
+
+        B = A[1]
+        C = A[2]
+        D = A[3]
+        E = A[4]
+        F = A[5]
+        A = A[0]
+
+        Q = np.array([
+            [A, B/2, D/2],
+            [B/2, C, E/2],
+            [D/2, E/2, F]
+        ])
+
+        # eigen
+        w, vr = eig(Q)
+        if ((0 < w).sum()) != 2:
+            w, vr = eig(-Q)
+        
+        return w, vr
 
 def main():
     rospy.init_node('bearing_perception', anonymous=True)
