@@ -48,24 +48,24 @@ class Drone:
         [0,-np.sin(np.pi/18),np.cos(np.pi/18)]
     ])
 
-    bRcForward = np.array([
+    bRc = np.array([
         [1,0,0],
         [0,0,1],
         [0,-1,0]
     ])
 
-    @staticmethod
-    def bRc(drone_id):
-        if drone_id == "tello_601":
-            return np.array(drone_601_hd['R'])
-        elif drone_id == "tello_C":
-            return np.array(drone_C_hd['R'])
-        elif drone_id == "tello_E":
-            return np.array(drone_E_hd['R'])
-        elif drone_id == "tello_A":
-            return np.array(drone_A_hd['R'])
-        elif drone_id == "tello_D":
-            return np.array(drone_D_hd['R'])  
+    # @staticmethod
+    # def bRc(drone_id):
+    #     if drone_id == "tello_601":
+    #         return np.array(drone_601_hd['R'])
+    #     elif drone_id == "tello_C":
+    #         return np.array(drone_C_hd['R'])
+    #     elif drone_id == "tello_E":
+    #         return np.array(drone_E_hd['R'])
+    #     elif drone_id == "tello_A":
+    #         return np.array(drone_A_hd['R'])
+    #     elif drone_id == "tello_D":
+    #         return np.array(drone_D_hd['R'])  
 
     @staticmethod
     def ns2id(tello_ns):

@@ -48,7 +48,7 @@ class Bearing():
             # upper_bound = np.array([132, 243, 230])
             lower_bound = np.array([115, 153, 1])	 
             upper_bound = np.array([146, 242, 152])
-        elif self.tello_ns == "tello_E":
+        elif self.tello_ns == "tello_A":
             lower_bound = np.array([3, 150, 135])	 
             upper_bound = np.array([26, 265, 265])
 
@@ -112,6 +112,8 @@ class Bearing():
                 bc = l2*np.sqrt((l1-l0)/(l1-l2))*q1 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
                 bc = 0.02*bc/np.sqrt(-l1*l2)
                 bc = bc.real
+                if bc[2] < 0:
+                    bc = -bc
 
                 msg = position_msg()
                 msg.header.stamp = rospy.get_rostime()
@@ -121,7 +123,7 @@ class Bearing():
                 # bearing in {W}
                 if self.iRb is None:
                     return
-                bw = (self.iRb)@(Drone.bRcForward)@(Drone.camTilt)@bc
+                bw = (self.iRb)@(Drone.bRc)@(Drone.camTilt)@bc
 
                 msg = position_msg()
                 msg.header.stamp = rospy.get_rostime()
