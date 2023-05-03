@@ -186,60 +186,33 @@ class sYawSearch(smach.State):
                 u1z = 0
                 u1r = 0.4
             else:
-                bl = np.copy(sub1.bl)
-                bl[1] = 0
-                psi = bl@np.array([0,0,1])
-                psi = psi / np.sqrt(bl@bl)
-                psi = np.arccos(psi)
-                psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+                index = 1
+                psi = self.yawError(index)
                 u1r = self.pid_yaw_1.update(psi)         # desired: 0
 
-                be = (Drone.camTilt)@sub1.bl
-                be[0] = 0
-                phi = be@np.array([0,0,1])
-                phi = phi / np.sqrt(be@be)
-                phi = np.arccos(phi)
-                phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+                phi = self.pitchError(index)
                 u1z = self.pid_pitch_1.update(phi)         # desired: 0
 
             if sub2.bl is None:
                 u2z = 0
                 u2r = 0.4
             else:
-                bl = np.copy(sub2.bl)
-                bl[1] = 0
-                psi = bl@np.array([0,0,1])
-                psi = psi / np.sqrt(bl@bl)
-                psi = np.arccos(psi)
-                psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+                index = 2
+                psi = self.yawError(index)
                 u2r = self.pid_yaw_2.update(psi)         # desired: 0
 
-                be = (Drone.camTilt)@sub2.bl
-                be[0] = 0
-                phi = be@np.array([0,0,1])
-                phi = phi / np.sqrt(be@be)
-                phi = np.arccos(phi)
-                phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+                phi = self.pitchError(index)
                 u2z = self.pid_pitch_2.update(phi)         # desired: 0
 
             if sub3.bl is None:
                 u3z = 0
                 u3r = 0.4
             else:
-                bl = np.copy(sub3.bl)
-                bl[1] = 0
-                psi = bl@np.array([0,0,1])
-                psi = psi / np.sqrt(bl@bl)
-                psi = np.arccos(psi)
-                psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+                index = 3
+                psi = self.yawError(index)
                 u3r = self.pid_yaw_3.update(psi)         # desired: 0
 
-                be = (Drone.camTilt)@sub3.bl
-                be[0] = 0
-                phi = be@np.array([0,0,1])
-                phi = phi / np.sqrt(be@be)
-                phi = np.arccos(phi)
-                phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+                phi = self.pitchError(index)
                 u3z = self.pid_pitch_3.update(phi)         # desired: 0
 
 
@@ -257,45 +230,67 @@ class sYawSearch(smach.State):
         pub_sm.util_smach('YAW_SEARCH', 'FORMATION_CONTROL')
         return 'ys_finish'
 
-    def bearing2theta(self, bearing):
-        bearing[1] = 0
-        theta = bearing@np.array([0,0,1])
-        theta = theta / np.sqrt(bearing@bearing)
-        theta = np.arccos(theta)*180/np.pi
-        theta = -np.sign(bearing[0]) * theta
+    def yawError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
 
-        return theta
+        bl = np.copy(sub_.bl)
+        bl[1] = 0
+        psi = bl@np.array([0,0,1])
+        psi = psi / np.sqrt(bl@bl)
+        psi = np.arccos(psi)
+        psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+
+        return psi
+
+    def pitchError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        be = (Drone.camTilt)@sub_.bl
+        be[0] = 0
+        phi = be@np.array([0,0,1])
+        phi = phi / np.sqrt(be@be)
+        phi = np.arccos(phi)
+        phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+        return phi
+
+# YawSearch check version
 
 class sFormationControl(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['fc_finish'])
 
         # load pid gain
-        kpr = float(rospy.get_param('~yaw_kp', "0.025"))
-        kir = float(rospy.get_param('~yaw_ki', "0.0"))
-        kdr = float(rospy.get_param('~yaw_kd', "0.0"))
-        self.pid1r = PID_single_var(kpr, kir, kdr)
-        self.pid2r = PID_single_var(kpr, kir, kdr)
-        self.pid3r = PID_single_var(kpr, kir, kdr)
+        kp_yaw = float(rospy.get_param('~yaw_kp', "0.025"))
+        ki_yaw = float(rospy.get_param('~yaw_ki', "0.025"))
+        kd_yaw = float(rospy.get_param('~yaw_kd', "0.025"))
+        self.pid_yaw_1 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+        self.pid_yaw_2 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+        self.pid_yaw_3 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
 
         # set target
-        yaw_tol = float(rospy.get_param('~yaw_tol', "5"))
-        self.pid1r.setTarget(0)
-        self.pid2r.setTarget(0)
-        self.pid3r.setTarget(0)
+        self.pid_yaw_1.setTarget(0)
+        self.pid_yaw_2.setTarget(0)
+        self.pid_yaw_3.setTarget(0)
 
-        d1 = -90*np.pi/180
-        self.bg1_d = np.array([[np.cos(d1),-np.sin(d1),0],[np.sin(d1),np.cos(d1),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
-        d2 = 30*np.pi/180
-        self.bg2_d = np.array([[np.cos(d2),-np.sin(d2),0],[np.sin(d2),np.cos(d2),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
-        d3 = 150*np.pi/180
-        self.bg3_d = np.array([[np.cos(d3),-np.sin(d3),0],[np.sin(d3),np.cos(d3),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
-
-        # print("=================")
-        # print(self.bg1_d)
-        # print(self.bg2_d)
-        # print(self.bg3_d)
-        # print("=================")
+        # d1 = -90*np.pi/180
+        # self.bg1_d = np.array([[np.cos(d1),-np.sin(d1),0],[np.sin(d1),np.cos(d1),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
+        # d2 = 30*np.pi/180
+        # self.bg2_d = np.array([[np.cos(d2),-np.sin(d2),0],[np.sin(d2),np.cos(d2),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
+        # d3 = 150*np.pi/180
+        # self.bg3_d = np.array([[np.cos(d3),-np.sin(d3),0],[np.sin(d3),np.cos(d3),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
+        self.t12 = np.array([1,0,0])
+        self.t23 = np.array([-1/2,np.sqrt(3)/2,0])
+        self.t31 = np.array([-1/2,-np.sqrt(3)/2,0])
 
     def execute(self, userdata):
         rospy.loginfo('Executing state FORMATION CONTROL')          
@@ -303,35 +298,29 @@ class sFormationControl(smach.State):
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():           
             # yaw control
-            bl1 = sub1.bearing
-            theta = self.bearing2theta(bl1)
-            u1r = self.pid1r.update(theta)
-            pub1.util_yaw_error(self.pid1r.err)
+            index = 1
+            psi = self.yawError(index)
+            u1r = self.pid_yaw_1.update(psi)
+            pub1.util_yaw_error(self.pid_yaw_1.err)
 
-            bl2 = sub2.bearing
-            theta = self.bearing2theta(bl2)
-            u2r = self.pid2r.update(theta)
-            pub2.util_yaw_error(self.pid2r.err)
+            index = 2
+            psi = self.yawError(index)
+            u2r = self.pid_yaw_2.update(psi)
+            pub2.util_yaw_error(self.pid_yaw_2.err)
 
-            bl3 = sub3.bearing
-            theta = self.bearing2theta(bl3)
-            u3r = self.pid3r.update(theta)
-            pub3.util_yaw_error(self.pid3r.err)
+            index = 3
+            psi = self.yawError(index)
+            u3r = self.pid_yaw_3.update(psi)
+            pub3.util_yaw_error(self.pid_yaw_3.err)
 
             # formation control
-            bg1 = (sub1.iRb)@(Drone.bRc)@(Drone.camTilt)@bl1
-            bg2 = (sub2.iRb)@(Drone.bRc)@(Drone.camTilt)@bl2
-            bg3 = (sub3.iRb)@(Drone.bRc)@(Drone.camTilt)@bl3
-            pub1.util_bearing_global(bg1)
-            pub2.util_bearing_global(bg2)
-            pub3.util_bearing_global(bg3)
+            bg1 = sub1.bg
+            bg2 = sub2.bg
+            bg3 = sub3.bg
             
-            err1 = self.bearingDiff(bg1, self.bg1_d)
-            err2 = self.bearingDiff(bg2, self.bg2_d)
-            err3 = self.bearingDiff(bg3, self.bg3_d)
-            pub1.util_bearing_error(err1)
-            pub2.util_bearing_error(err2)
-            pub3.util_bearing_error(err3)
+            pub1.util_bearing_error(np.arccos(bg1@self.t12))
+            pub2.util_bearing_error(np.arccos(bg2@self.t23))
+            pub3.util_bearing_error(np.arccos(bg3@self.t31))
 
             # if ((err1 < 0.08) and (err2 < 0.08) and (err3 < 0.08)):
             #     break
@@ -346,9 +335,9 @@ class sFormationControl(smach.State):
             # u3 = self.bg3_d - bg3
             # u3[0] = u3[0]*K
             # u3[1] = u3[1]*K
-            u1 = K*(self.bg1_d - bg1)
-            u2 = K*(self.bg2_d - bg2)
-            u3 = K*(self.bg3_d - bg3)
+            u1 = K*(self.t12 - bg1 - self.t31 + bg3)
+            u2 = K*(self.t23 - bg2 - self.t12 + bg1)
+            u3 = K*(self.t31 - bg3 - self.t23 + bg2)
             u1 = (sub1.iRb.T)@u1
             u2 = (sub2.iRb.T)@u2
             u3 = (sub3.iRb.T)@u3
@@ -361,18 +350,22 @@ class sFormationControl(smach.State):
         pub_sm.util_smach('FORMATION_CONTROL', 'LAND')
         return 'fc_finish'
 
-    def bearing2theta(self, bearing):
-        bearing[1] = 0
-        theta = bearing@np.array([0,0,1])
-        theta = theta / np.sqrt(bearing@bearing)
-        theta = np.arccos(theta)*180/np.pi
-        theta = -np.sign(bearing[0]) * theta
+    def yawError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
 
-        return theta
+        bl = np.copy(sub_.bl)
+        bl[1] = 0
+        psi = bl@np.array([0,0,1])
+        psi = psi / np.sqrt(bl@bl)
+        psi = np.arccos(psi)
+        psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
 
-    def bearingDiff(self, bgd, bg):
-        theta = bgd@bg/(np.linalg.norm(bgd)*np.linalg.norm(bg))
-        return theta
+        return psi
 
 class sLand(smach.State):
     def __init__(self):
@@ -389,6 +382,8 @@ class sLand(smach.State):
         pub2.util_land()
         pub3.util_land()
         return 'land_finish'
+
+
 
 class Control():
     def __init__(self):        
@@ -425,6 +420,7 @@ class Control():
                 transitions={'land_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
         smach_thread.start()
+
 
 
 class Pubs():
@@ -475,7 +471,6 @@ class Pubs():
         msg.header.stamp = rospy.get_rostime()
         msg.position = np.array([0,0,err])
         self.pub_bearing_error.publish(msg)
-
 
 class PubSm():
     def __init__(self):

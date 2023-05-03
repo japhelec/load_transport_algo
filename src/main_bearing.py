@@ -49,8 +49,11 @@ class Bearing():
             lower_bound = np.array([3, 150, 135])	 
             upper_bound = np.array([26, 265, 265])
         elif self.tello_ns == "tello_A":
-            lower_bound = np.array([63, 77, 14])	 
-            upper_bound = np.array([86, 156, 201])
+            # lower_bound = np.array([63, 77, 14])	 
+            # upper_bound = np.array([86, 156, 201])
+            # === sunlight ===
+            lower_bound = np.array([60, 70, 14])	 
+            upper_bound = np.array([88, 130, 201])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
@@ -62,7 +65,7 @@ class Bearing():
             contour = max(contours, key = len)
             area = cv2.contourArea(contour)
             
-            if area > 500:
+            if area > 100:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
                 # contour points back to camera frame
