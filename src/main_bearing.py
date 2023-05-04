@@ -65,7 +65,7 @@ class Bearing():
             contour = max(contours, key = len)
             area = cv2.contourArea(contour)
             
-            if area > 100:
+            if area > 350:
                 cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
                 # contour points back to camera frame

@@ -170,17 +170,9 @@ class sYawSearch(smach.State):
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
-            # if ((sub1.bearing is not None) and (sub2.bearing is not None) and (sub3.bearing is not None)):
-            #     if ((self.pid1r.check(self.bearing2theta(sub1.bearing))) and (self.pid2r.check(self.bearing2theta(sub1.bearing))) and (self.pid3r.check(self.bearing2theta(sub1.bearing)))):
-            #         break
-            
-            # u1z = self.pid1z.update(sub1.h)
-            # u2z = self.pid2z.update(sub2.h)
-            # u3z = self.pid3z.update(sub3.h)
-
-            # pub1.util_h_err(self.pid1z.err)
-            # pub2.util_h_err(self.pid2z.err)
-            # pub3.util_h_err(self.pid3z.err)
+            if ((sub1.bl is not None) and (sub2.bl is not None) and (sub3.bl is not None)):
+                if ((self.pid_yaw_1.err < 0.09) and (self.pid_yaw_2.err < 0.09) and (self.pid_yaw_3.err < 0.09)):
+                    break
 
             if sub1.bl is None:
                 u1z = 0
@@ -263,13 +255,18 @@ class sYawSearch(smach.State):
         phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
         return phi
 
-# YawSearch check version
-
 class sFormationControl(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['fc_finish'])
 
         # load pid gain
+        kp_pitch = float(rospy.get_param('~pitch_kp', "0.025"))
+        ki_pitch = float(rospy.get_param('~pitch_ki', "0.025"))
+        kd_pitch = float(rospy.get_param('~pitch_kd', "0.025"))
+        self.pid_pitch_1 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+        self.pid_pitch_2 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+        self.pid_pitch_3 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+
         kp_yaw = float(rospy.get_param('~yaw_kp', "0.025"))
         ki_yaw = float(rospy.get_param('~yaw_ki', "0.025"))
         kd_yaw = float(rospy.get_param('~yaw_kd', "0.025"))
@@ -277,17 +274,16 @@ class sFormationControl(smach.State):
         self.pid_yaw_2 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
         self.pid_yaw_3 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
 
+        self.k_form = float(rospy.get_param('~form_k', "0.025"))
+
         # set target
         self.pid_yaw_1.setTarget(0)
+        self.pid_pitch_1.setTarget(-3*np.pi/180)
         self.pid_yaw_2.setTarget(0)
+        self.pid_pitch_2.setTarget(-3*np.pi/180)
         self.pid_yaw_3.setTarget(0)
+        self.pid_pitch_3.setTarget(-3*np.pi/180)
 
-        # d1 = -90*np.pi/180
-        # self.bg1_d = np.array([[np.cos(d1),-np.sin(d1),0],[np.sin(d1),np.cos(d1),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
-        # d2 = 30*np.pi/180
-        # self.bg2_d = np.array([[np.cos(d2),-np.sin(d2),0],[np.sin(d2),np.cos(d2),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
-        # d3 = 150*np.pi/180
-        # self.bg3_d = np.array([[np.cos(d3),-np.sin(d3),0],[np.sin(d3),np.cos(d3),0],[0,0,1]])@(Drone.bRc)@(Drone.camTilt)@np.array([0, -0.277, 1])
         self.t12 = np.array([1,0,0])
         self.t23 = np.array([-1/2,np.sqrt(3)/2,0])
         self.t31 = np.array([-1/2,-np.sqrt(3)/2,0])
@@ -297,26 +293,39 @@ class sFormationControl(smach.State):
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():           
-            # yaw control
+            # yaw pitch control
             index = 1
             psi = self.yawError(index)
-            u1r = self.pid_yaw_1.update(psi)
+            u1r = self.pid_yaw_1.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u1z = self.pid_pitch_1.update(phi)         # desired: 0
             pub1.util_yaw_error(self.pid_yaw_1.err)
+            pub1.util_pitch_error(self.pid_pitch_1.err)
 
             index = 2
             psi = self.yawError(index)
-            u2r = self.pid_yaw_2.update(psi)
+            u2r = self.pid_yaw_2.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u2z = self.pid_pitch_2.update(phi)         # desired: 0
             pub2.util_yaw_error(self.pid_yaw_2.err)
+            pub2.util_pitch_error(self.pid_pitch_2.err)
 
             index = 3
             psi = self.yawError(index)
-            u3r = self.pid_yaw_3.update(psi)
+            u3r = self.pid_yaw_3.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u3z = self.pid_pitch_3.update(phi)         # desired: 0
             pub3.util_yaw_error(self.pid_yaw_3.err)
+            pub3.util_pitch_error(self.pid_pitch_3.err)
+
 
             # formation control
-            bg1 = sub1.bg
-            bg2 = sub2.bg
-            bg3 = sub3.bg
+            index = 1
+            bg1 = self.bgProject2xy(index)
+            index = 2
+            bg2 = self.bgProject2xy(index)
+            index = 3
+            bg3 = self.bgProject2xy(index)
             
             pub1.util_bearing_error(np.arccos(bg1@self.t12))
             pub2.util_bearing_error(np.arccos(bg2@self.t23))
@@ -324,27 +333,16 @@ class sFormationControl(smach.State):
 
             # if ((err1 < 0.08) and (err2 < 0.08) and (err3 < 0.08)):
             #     break
-
-            K = 0.3
-            # u1 = self.bg1_d - bg1
-            # u1[0] = u1[0]*K
-            # u1[1] = u1[1]*K
-            # u2 = self.bg2_d - bg2
-            # u2[0] = u2[0]*K
-            # u2[1] = u2[1]*K
-            # u3 = self.bg3_d - bg3
-            # u3[0] = u3[0]*K
-            # u3[1] = u3[1]*K
-            u1 = K*(self.t12 - bg1 - self.t31 + bg3)
-            u2 = K*(self.t23 - bg2 - self.t12 + bg1)
-            u3 = K*(self.t31 - bg3 - self.t23 + bg2)
+            u1 = self.k_form*(bg1 - self.t12 - bg3 + self.t31 )
+            u2 = self.k_form*(bg2 - self.t23 - bg1 + self.t12)
+            u3 = self.k_form*(bg3 - self.t31 - bg2 + self.t23)
             u1 = (sub1.iRb.T)@u1
             u2 = (sub2.iRb.T)@u2
             u3 = (sub3.iRb.T)@u3
 
-            pub1.util_cmd(u1[0], u1[1], u1[2], u1r)
-            pub2.util_cmd(u2[0], u2[1], u2[2], u2r)
-            pub3.util_cmd(u3[0], u3[1], u3[2], u3r)
+            pub1.util_cmd(u1[0], u1[1], u1z, u1r)
+            pub2.util_cmd(u2[0], u2[1], u2z, u2r)
+            pub3.util_cmd(u3[0], u3[1], u3z, u3r)
             rate.sleep()
         
         pub_sm.util_smach('FORMATION_CONTROL', 'LAND')
@@ -367,6 +365,35 @@ class sFormationControl(smach.State):
 
         return psi
 
+    def pitchError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        be = (Drone.camTilt)@sub_.bl
+        be[0] = 0
+        phi = be@np.array([0,0,1])
+        phi = phi / np.sqrt(be@be)
+        phi = np.arccos(phi)
+        phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+        return phi
+
+    def bgProject2xy(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        bg = np.copy(sub_.bg)
+        bg[2] = 0
+        return bg / np.sqrt(bg@bg)
+
+
 class sLand(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['land_finish'])
@@ -384,28 +411,21 @@ class sLand(smach.State):
         return 'land_finish'
 
 
-
 class Control():
     def __init__(self):        
         self.sm_top = smach.StateMachine(outcomes=['control_finish'])
         with self.sm_top:
             smach.StateMachine.add('WARMUP', sWarmup(), 
                 transitions={'warmup_finish':'FLYUP_OPEN'})
-            # smach.StateMachine.add('WARMUP', sWarmup(), 
-            #     transitions={'warmup_finish':'TAKEOFF'})
-            # smach.StateMachine.add('TAKEOFF', sTakeoff(), 
-            #     transitions={'takeoff_finish':'YAW_SEARCH'})
-            # smach.StateMachine.add('WARMUP', sWarmup(), 
-            #     transitions={'warmup_finish':'LAND'})
-
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'YAW_SEARCH'})
-            smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-                transitions={'ys_finish':'LAND'})
+
             # smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-            #     transitions={'ys_finish':'FORMATION_CONTROL'})
-            # smach.StateMachine.add('FORMATION_CONTROL', sFormationControl(), 
-            #     transitions={'fc_finish':'LAND'})
+            #     transitions={'ys_finish':'LAND'})
+            smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
+                transitions={'ys_finish':'FORMATION_CONTROL'})
+            smach.StateMachine.add('FORMATION_CONTROL', sFormationControl(), 
+                transitions={'fc_finish':'LAND'})
 
             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
             #     transitions={'flyup_open_finish':'HOVER'})
@@ -420,7 +440,6 @@ class Control():
                 transitions={'land_finish':'control_finish'})
         smach_thread = threading.Thread(target=self.sm_top.execute, daemon = True)
         smach_thread.start()
-
 
 
 class Pubs():

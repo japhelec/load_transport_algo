@@ -15,6 +15,7 @@
 		<param name="yaw_ki" value="$(arg yaw_ki)" />
 		<param name="yaw_kd" value="$(arg yaw_kd)" />
 		<param name="yaw_tol" value="$(arg yaw_tol)" />
+		<param name="form_k" value="$(arg form_k)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
