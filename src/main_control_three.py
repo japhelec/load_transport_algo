@@ -255,7 +255,7 @@ class sYawSearch(smach.State):
         phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
         return phi
 
-class sFormationControl(smach.State):
+class sBearingFormation(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['fc_finish'])
 
@@ -424,8 +424,10 @@ class Control():
             #     transitions={'ys_finish':'LAND'})
             smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
                 transitions={'ys_finish':'FORMATION_CONTROL'})
-            smach.StateMachine.add('FORMATION_CONTROL', sFormationControl(), 
+            smach.StateMachine.add('FORMATION_CONTROL', sBearingFormation(), 
                 transitions={'fc_finish':'LAND'})
+            # smach.StateMachine.add('FORMATION_CONTROL', sDistanceFormation(), 
+            #     transitions={'fc_finish':'LAND'})
 
             # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
             #     transitions={'flyup_open_finish':'HOVER'})
@@ -450,7 +452,7 @@ class Pubs():
         self.pub_cmd_vel = rospy.Publisher('/%s/cmd_vel' % tello_ns, Twist, queue_size=1)
         self.pub_land = rospy.Publisher('/%s/land' % tello_ns, Empty, queue_size=1)
         self.pub_yaw_error = rospy.Publisher('/%s/yaw/error' % tello_ns, position_msg, queue_size=1)
-        self.pub_pitch_error = rospy.Publisher('/%s/yaw/error' % tello_ns, position_msg, queue_size=1)
+        self.pub_pitch_error = rospy.Publisher('/%s/pitch/error' % tello_ns, position_msg, queue_size=1)
         self.pub_bearing_error = rospy.Publisher('/%s/bearing/error' % tello_ns, position_msg, queue_size=1)
 
     def util_cmd(self, x, y, z, yaw):
