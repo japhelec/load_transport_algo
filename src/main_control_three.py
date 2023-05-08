@@ -170,12 +170,12 @@ class sYawSearch(smach.State):
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
-            # if ((sub1.bl is not None) and (sub2.bl is not None) and (sub3.bl is not None)):
-            #     if ((self.pid_yaw_1.err < 0.09) and (self.pid_yaw_2.err < 0.09) and (self.pid_yaw_3.err < 0.09)):
-            #         break
+            if ((sub1.bl is not None) and (sub2.bl is not None) and (sub3.bl is not None)):
+                if ((self.pid_yaw_1.err < 0.09) and (self.pid_yaw_2.err < 0.09) and (self.pid_yaw_3.err < 0.09)):
+                    break
 
             if sub1.bl is None:
-                u1z = 0.5
+                u1z = 0.6
                 u1r = 0.4
             else:
                 index = 1
@@ -425,23 +425,12 @@ class Control():
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'YAW_SEARCH'})
 
-            smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-                transitions={'ys_finish':'LAND'})
             # smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-            #     transitions={'ys_finish':'FORMATION_CONTROL'})
-            # smach.StateMachine.add('FORMATION_CONTROL', sBearingStabilization(), 
-            #     transitions={'fc_finish':'LAND'})
-            # smach.StateMachine.add('FORMATION_CONTROL', sDistanceFormation(), 
-            #     transitions={'fc_finish':'LAND'})
-
-            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
-            #     transitions={'flyup_open_finish':'HOVER'})
-            # smach.StateMachine.add('HOVER', sHover(), 
-            #     transitions={'hover_finish':'LEFT'})
-            # smach.StateMachine.add('LEFT', sLeft(), 
-            #     transitions={'left_finish':'RIGHT'})
-            # smach.StateMachine.add('RIGHT', sRight(), 
-            #     transitions={'right_finish':'LAND'})
+            #     transitions={'ys_finish':'LAND'})
+            smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
+                transitions={'ys_finish':'FORMATION_CONTROL'})
+            smach.StateMachine.add('FORMATION_CONTROL', sBearingStabilization(), 
+                transitions={'fc_finish':'LAND'})
 
             smach.StateMachine.add('LAND', sLand(), 
                 transitions={'land_finish':'control_finish'})
