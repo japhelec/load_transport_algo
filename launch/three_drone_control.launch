@@ -16,6 +16,8 @@
 		<param name="yaw_kd" value="$(arg yaw_kd)" />
 		<param name="yaw_tol" value="$(arg yaw_tol)" />
 		<param name="form_k" value="$(arg form_k)" />
+		<param name="dist_k" value="$(arg dist_k)" />
+		<param name="desired_dist" value="$(arg desired_dist)" />
 	</node>
 
 	<node pkg="rosbag" type="record" name="recorder" output="screen" if="$(arg is_record)" args="
