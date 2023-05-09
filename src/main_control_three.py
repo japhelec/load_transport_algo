@@ -175,8 +175,8 @@ class sYawSearch(smach.State):
                     break
 
             if sub1.bl is None:
-                u1z = 0.4
-                # u1z = 0.1
+                # u1z = 0.4
+                u1z = 0.1
                 u1r = 0.4
             else:
                 index = 1
@@ -187,8 +187,8 @@ class sYawSearch(smach.State):
                 u1z = self.pid_pitch_1.update(phi)         # desired: 0
 
             if sub2.bl is None:
-                u2z = 0
-                # u2z = 0.1
+                # u2z = 0
+                u2z = 0.1
                 u2r = 0.4
             else:
                 index = 2
@@ -199,8 +199,8 @@ class sYawSearch(smach.State):
                 u2z = self.pid_pitch_2.update(phi)         # desired: 0
 
             if sub3.bl is None:
-                u3z = 0
-                # u3z = 0.1
+                # u3z = 0
+                u3z = 0.1
                 u3r = 0.4
             else:
                 index = 3
