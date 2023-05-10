@@ -159,14 +159,11 @@ class sYawSearch(smach.State):
         rospy.loginfo('Executing state YAW SEARCH')   
 
         sub1.bl = None
-        sub1.bg = None
-        sub1.distance = None
+        sub1.nbl = None
         sub2.bl = None
-        sub2.bg = None
-        sub2.distance = None
+        sub2.nbl = None
         sub3.bl = None
-        sub3.bg = None
-        sub3.distance = None
+        sub3.nbl = None
         
         rate = rospy.Rate(15) 
         while not rospy.is_shutdown():
@@ -233,12 +230,12 @@ class sYawSearch(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        bl = np.copy(sub_.bl)
-        bl[1] = 0
-        psi = bl@np.array([0,0,1])
-        psi = psi / np.sqrt(bl@bl)
+        nbl = np.copy(sub_.nbl)
+        nbl[1] = 0
+        psi = nbl@np.array([0,0,1])
+        psi = psi / np.sqrt(nbl@nbl)
         psi = np.arccos(psi)
-        psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+        psi = -np.sign(nbl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
 
         return psi
 
@@ -250,7 +247,7 @@ class sYawSearch(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        be = (Drone.camTilt)@sub_.bl
+        be = (Drone.camTilt)@sub_.nbl
         be[0] = 0
         phi = be@np.array([0,0,1])
         phi = phi / np.sqrt(be@be)
@@ -321,7 +318,6 @@ class sBearingStabilization(smach.State):
             pub3.util_yaw_error(self.pid_yaw_3.err)
             pub3.util_pitch_error(self.pid_pitch_3.err)
 
-
             # formation control
             index = 1
             bg1 = self.bgProject2xy(index)
@@ -359,12 +355,12 @@ class sBearingStabilization(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        bl = np.copy(sub_.bl)
-        bl[1] = 0
-        psi = bl@np.array([0,0,1])
-        psi = psi / np.sqrt(bl@bl)
+        nbl = np.copy(sub_.nbl)
+        nbl[1] = 0
+        psi = nbl@np.array([0,0,1])
+        psi = psi / np.sqrt(nbl@nbl)
         psi = np.arccos(psi)
-        psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+        psi = -np.sign(nbl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
 
         return psi
 
@@ -376,7 +372,7 @@ class sBearingStabilization(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        be = (Drone.camTilt)@sub_.bl
+        be = (Drone.camTilt)@sub_.nbl
         be[0] = 0
         phi = be@np.array([0,0,1])
         phi = phi / np.sqrt(be@be)
@@ -461,7 +457,6 @@ class sDistanceLeaderlessStabilization(smach.State):
             pub3.util_yaw_error(self.pid_yaw_3.err)
             pub3.util_pitch_error(self.pid_pitch_3.err)
 
-
             # formation control
             index = 1
             l12, bg1 = self.bgProject2xy(index)
@@ -499,12 +494,12 @@ class sDistanceLeaderlessStabilization(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        bl = np.copy(sub_.bl)
-        bl[1] = 0
-        psi = bl@np.array([0,0,1])
-        psi = psi / np.sqrt(bl@bl)
+        nbl = np.copy(sub_.nbl)
+        nbl[1] = 0
+        psi = nbl@np.array([0,0,1])
+        psi = psi / np.sqrt(nbl@nbl)
         psi = np.arccos(psi)
-        psi = -np.sign(bl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+        psi = -np.sign(nbl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
 
         return psi
 
@@ -516,7 +511,7 @@ class sDistanceLeaderlessStabilization(smach.State):
         elif index == 3:
             sub_ = sub3
 
-        be = (Drone.camTilt)@sub_.bl
+        be = (Drone.camTilt)@sub_.nbl
         be[0] = 0
         phi = be@np.array([0,0,1])
         phi = phi / np.sqrt(be@be)
@@ -646,8 +641,9 @@ class Subs():
     def __init__(self, tello_ns):
         self.iRb = np.array([[1,0,0], [0,1,0], [0,0,1]])
         self.bl = None
+        self.nbl = None
         self.bg = None
-        self.distance = None
+        self.nbg = None
         
         self.sub_odom = rospy.Subscriber('/%s/odom' % tello_ns, Odometry, self.cb_odom, queue_size = 1)
         self.sub_bearing = rospy.Subscriber('/%s/bearing/local' % tello_ns, position_msg, self.cb_bearing_local, queue_size = 1)
@@ -668,13 +664,15 @@ class Subs():
 
     def cb_bearing_local(self, data):
         direction = np.array(data.position)
-        self.distance = np.sqrt(direction@direction)
-        self.bl = direction / self.distance
+        distance = np.sqrt(direction@direction)
+        self.bl = direction
+        self.nbl = direction / distance
 
     def cb_bearing_global(self, data):
         direction = np.array(data.position)
         distance = np.sqrt(direction@direction)
-        self.bg = direction / distance
+        self.bg = direction
+        self.nbg = direction / distance
 
 def shutdown_hook():
     print("************in shutdown hook*************")
