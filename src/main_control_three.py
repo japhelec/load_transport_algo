@@ -172,7 +172,7 @@ class sYawSearch(smach.State):
                     break
 
             if sub1.bl is None:
-                u1z = 0.4
+                u1z = 0.5
                 # u1z = 0.1
                 u1r = 0.4
             else:
@@ -532,7 +532,146 @@ class sDistanceLeaderlessStabilization(smach.State):
         distance = np.sqrt(bg@bg)
         return distance, bg / distance
 
-# class sDistanceLeaderStabilization(smach.State):
+class sDistanceLeaderStabilization(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fc_finish'])
+
+        # load pid gain
+        kp_pitch = float(rospy.get_param('~pitch_kp', "0.025"))
+        ki_pitch = float(rospy.get_param('~pitch_ki', "0.025"))
+        kd_pitch = float(rospy.get_param('~pitch_kd', "0.025"))
+        self.pid_pitch_1 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+        self.pid_pitch_2 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+        self.pid_pitch_3 = PID_single_var(kp_pitch, ki_pitch, kd_pitch)
+
+        kp_yaw = float(rospy.get_param('~yaw_kp', "0.025"))
+        ki_yaw = float(rospy.get_param('~yaw_ki', "0.025"))
+        kd_yaw = float(rospy.get_param('~yaw_kd', "0.025"))
+        self.pid_yaw_1 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+        self.pid_yaw_2 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+        self.pid_yaw_3 = PID_single_var(kp_yaw, ki_yaw, kd_yaw)
+
+        self.k_form = float(rospy.get_param('~form_k', "0.025"))
+        self.k_dist = float(rospy.get_param('~dist_k', "0.025"))
+
+        # set target
+        self.pid_yaw_1.setTarget(0)
+        self.pid_pitch_1.setTarget(-3*np.pi/180)
+        self.pid_yaw_2.setTarget(0)
+        self.pid_pitch_2.setTarget(-3*np.pi/180)
+        self.pid_yaw_3.setTarget(0)
+        self.pid_pitch_3.setTarget(-3*np.pi/180)
+
+        self.t12 = np.array([1,0,0])
+        self.t23 = np.array([-1/2,np.sqrt(3)/2,0])
+        self.t31 = np.array([-1/2,-np.sqrt(3)/2,0])
+        self.l31 = float(rospy.get_param('~desired_dist', "0.025"))
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state FORMATION CONTROL')          
+        
+        rate = rospy.Rate(15) 
+        while not rospy.is_shutdown():           
+            # yaw pitch control
+            index = 1
+            psi = self.yawError(index)
+            u1r = self.pid_yaw_1.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u1z = self.pid_pitch_1.update(phi)         # desired: 0
+            pub1.util_yaw_error(self.pid_yaw_1.err)
+            pub1.util_pitch_error(self.pid_pitch_1.err)
+
+            index = 2
+            psi = self.yawError(index)
+            u2r = self.pid_yaw_2.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u2z = self.pid_pitch_2.update(phi)         # desired: 0
+            pub2.util_yaw_error(self.pid_yaw_2.err)
+            pub2.util_pitch_error(self.pid_pitch_2.err)
+
+            index = 3
+            psi = self.yawError(index)
+            u3r = self.pid_yaw_3.update(psi)         # desired: 0
+            phi = self.pitchError(index)
+            u3z = self.pid_pitch_3.update(phi)         # desired: 0
+            pub3.util_yaw_error(self.pid_yaw_3.err)
+            pub3.util_pitch_error(self.pid_pitch_3.err)
+
+            # formation control
+            index = 1
+            l12, bg1 = self.bgProject2xy(index)
+            index = 2
+            l23, bg2 = self.bgProject2xy(index)
+            index = 3
+            l31, bg3 = self.bgProject2xy(index)
+            
+            pub1.util_bearing_error(np.arccos(bg1@self.t12))
+            pub2.util_bearing_error(np.arccos(bg2@self.t23))
+            pub3.util_bearing_error(np.arccos(bg3@self.t31))
+
+            # if ((err1 < 0.08) and (err2 < 0.08) and (err3 < 0.08)):
+            #     break
+            u1 = self.k_form*(bg1 - self.t12 - bg3 + self.t31) + self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)
+            u2 = self.k_form*(bg2 - self.t23 - bg1 + self.t12)
+            # u3 = self.k_form*(bg3 - self.t31 - bg2 + self.t23) + self.k_dist*(l31*(self.t31@bg3)*self.t31 - self.l31*self.t31)
+            u1 = (sub1.iRb.T)@u1
+            u2 = (sub2.iRb.T)@u2
+            # u3 = (sub3.iRb.T)@u3
+
+            pub1.util_cmd(u1[0], u1[1], u1z, u1r)
+            pub2.util_cmd(u2[0], u2[1], u2z, u2r)
+            pub3.util_cmd(0, 0, u3z, u3r)
+            rate.sleep()
+        
+        pub_sm.util_smach('FORMATION_CONTROL', 'LAND')
+        return 'fc_finish'
+
+    def yawError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        nbl = np.copy(sub_.nbl)
+        nbl[1] = 0
+        psi = nbl@np.array([0,0,1])
+        psi = psi / np.sqrt(nbl@nbl)
+        psi = np.arccos(psi)
+        psi = -np.sign(nbl[0]) * psi   # variable: difference between z axis and taregt ==> 0 - psi
+
+        return psi
+
+    def pitchError(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        be = (Drone.camTilt)@sub_.nbl
+        be[0] = 0
+        phi = be@np.array([0,0,1])
+        phi = phi / np.sqrt(be@be)
+        phi = np.arccos(phi)
+        phi = np.sign(be[1]) * phi   # variable: difference between z axis and taregt ==> 0 - phi
+        return phi
+
+    def bgProject2xy(self, index):
+        if index == 1:
+            sub_ = sub1
+        elif index == 2:
+            sub_ = sub2
+        elif index == 3:
+            sub_ = sub3
+
+        bg = np.copy(sub_.bg)
+        bg[2] = 0
+        distance = np.sqrt(bg@bg)
+        return distance, bg / distance
+
 # class sDistanceLeaderTransport(smach.State):
 
 
@@ -568,7 +707,9 @@ class Control():
                 transitions={'ys_finish':'FORMATION_CONTROL'})
             # smach.StateMachine.add('FORMATION_CONTROL', sBearingStabilization(), 
             #     transitions={'fc_finish':'LAND'})
-            smach.StateMachine.add('FORMATION_CONTROL', sDistanceLeaderlessStabilization(), 
+            # smach.StateMachine.add('FORMATION_CONTROL', sDistanceLeaderlessStabilization(), 
+            #     transitions={'fc_finish':'LAND'})
+            smach.StateMachine.add('FORMATION_CONTROL', sDistanceLeaderStabilization(), 
                 transitions={'fc_finish':'LAND'})
 
             smach.StateMachine.add('LAND', sLand(), 
