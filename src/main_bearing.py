@@ -99,6 +99,9 @@ class Bearing():
                 del D
                 w, vr = self.elpMtxQ(F)
 
+                if w is None:
+                    return
+
                 sorted_indexes = np.argsort(w)
                 w = w[sorted_indexes]
                 vr = vr[:,sorted_indexes]
@@ -167,10 +170,19 @@ class Bearing():
             [D/2, E/2, F]
         ])
 
-        # eigen
+        # check proper conic
         w, vr = eig(Q)
         if ((0 < w).sum()) != 2:
-            w, vr = eig(-Q)
+            Q = -Q
+            w, vr = eig(Q)
+
+        # check parabola or ellipse
+        A = Q[0,0]
+        B = Q[0,1]
+        C = Q[1,1]
+
+        if (A*C-B*B) < 0:
+            return None, None
         
         return w, vr
 
