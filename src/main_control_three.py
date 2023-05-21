@@ -567,6 +567,8 @@ class sDistanceLeaderStabilization(smach.State):
         self.t31 = np.array([-1/2,-np.sqrt(3)/2,0])
         self.l31 = float(rospy.get_param('~desired_dist', "0.025"))
 
+        # self.first = True
+
     def execute(self, userdata):
         rospy.loginfo('Executing state FORMATION CONTROL')          
         
@@ -611,6 +613,12 @@ class sDistanceLeaderStabilization(smach.State):
 
             # if ((err1 < 0.08) and (err2 < 0.08) and (err3 < 0.08)):
             #     break
+            # if self.first:
+            #     print("======================")
+            #     print((sub1.iRb.T)@(self.k_form*(bg1 - self.t12 - bg3 + self.t31)))
+            #     print((sub1.iRb.T)@(self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)))
+            #     self.first = False
+
             u1 = self.k_form*(bg1 - self.t12 - bg3 + self.t31) + self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)
             u2 = self.k_form*(bg2 - self.t23 - bg1 + self.t12)
             # u3 = self.k_form*(bg3 - self.t31 - bg2 + self.t23) + self.k_dist*(l31*(self.t31@bg3)*self.t31 - self.l31*self.t31)
