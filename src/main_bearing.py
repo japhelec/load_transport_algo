@@ -89,7 +89,7 @@ class Bearing():
                 cy = cy[:, None]
                 del aux
 
-                D = np.hstack((cx**2,cx*cy, cy**2, cx, cy, np.ones((sh[0], 1))))
+                D = np.hstack((cx**2+cy**2, cx, cy, np.ones((sh[0], 1))))
                 del c
                 del cx
                 del cy
@@ -97,27 +97,10 @@ class Bearing():
                 # find ellipse and eigen
                 F = D.T@D
                 del D
-                w, vr = self.elpMtxQ(F)
-
-                if w is None:
-                    return
-
-                sorted_indexes = np.argsort(w)
-                w = w[sorted_indexes]
-                vr = vr[:,sorted_indexes]
-
-                l2 = w[0]
-                l0 = w[1]
-                l1 = w[2]
-
-                q2 = vr[:, 0]
-                q0 = vr[:, 1]
-                q1 = vr[:, 2]
+                dist, vec = self.elpMtxQ(F)
 
                 # bearing in {C}
-                bc = l2*np.sqrt((l1-l0)/(l1-l2))*q1 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
-                bc = 0.02*bc/np.sqrt(-l1*l2)
-                bc = bc.real
+                bc = 0.02*dist*vec
                 if bc[2] < 0:
                     bc = -bc
 
@@ -135,7 +118,6 @@ class Bearing():
                 msg.header.stamp = rospy.get_rostime()
                 msg.position = bw
                 self.pub_bearing_global.publish(msg)
-                
 
         cv2.imshow(self.tello_ns, frame)
         cv2.waitKey(1)
@@ -157,34 +139,34 @@ class Bearing():
         w, vr = eig(F)
         A = vr[:, np.argmin(w)]
 
-        B = A[1]
-        C = A[2]
-        D = A[3]
-        E = A[4]
-        F = A[5]
-        A = A[0]
+        a = A[0]
+        d = A[1]
+        e = A[2]
+        f = A[3]
 
         Q = np.array([
-            [A, B/2, D/2],
-            [B/2, C, E/2],
-            [D/2, E/2, F]
+            [a, 0, d/2],
+            [0, a, e/2],
+            [d/2, e/2, f]
         ])
 
-        # check proper conic
         w, vr = eig(Q)
-        if ((0 < w).sum()) != 2:
-            Q = -Q
-            w, vr = eig(Q)
+        sorted_indexes = np.argsort(w)
+        w = w[sorted_indexes]
+        vr = vr[:,sorted_indexes]
 
-        # check parabola or ellipse
-        A = Q[0,0]
-        B = Q[0,1]
-        C = Q[1,1]
+        negative_count = (w < 0).sum()
+        positive_count = (w > 0).sum()
 
-        if (A*C-B*B) < 0:
-            return None, None
+        if negative_count == 1:
+            vec = vr[:,0]
+            dist = np.sqrt( np.absolute((w[1]+w[2])/(2*w[0])) + 1)
+
+        if positive_count == 1:
+            vec = vr[:,2]
+            dist = np.sqrt( np.absolute((w[1]+w[0])/(2*w[2])) + 1)
         
-        return w, vr
+        return dist, vec
 
 def main():
     rospy.init_node('bearing_perception', anonymous=True)
