@@ -71,6 +71,11 @@ class Bearing():
                 # contour points back to camera frame
                 sh = contour.shape
                 c = contour.reshape(sh[0], sh[2])
+                c = c[c[:,0]!=0,:]
+                c = c[c[:,0]!=959,:]
+                c = c[c[:,1]!=0,:]
+                c = c[c[:,1]!=719,:]
+                sh = c.shape
                 del contour
                 
                 cx = c[:,0]
