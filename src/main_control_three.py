@@ -172,7 +172,7 @@ class sYawSearch(smach.State):
                     break
 
             if sub1.bl is None:
-                u1z = 0.5
+                u1z = 0.3
                 # u1z = 0.1
                 u1r = 0.4
             else:
