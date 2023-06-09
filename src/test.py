@@ -39,6 +39,9 @@ class Perception():
         # ========ping pong========
         # lower_bound = np.array([3, 150, 135])	 
         # upper_bound = np.array([26, 265, 265])
+        # sunlight
+        # lower_bound = np.array([-2, 150, 60])	 
+        # upper_bound = np.array([26, 265, 265])
         # # ========blue========
         # lower_bound = np.array([107, 133, -4])	 
         # upper_bound = np.array([132, 243, 211])
@@ -49,8 +52,12 @@ class Perception():
         # lower_bound = np.array([115, 153, 1])	 
         # upper_bound = np.array([146, 242, 152])
         # ========green========
-        lower_bound = np.array([63, 77, 14])	 
-        upper_bound = np.array([86, 156, 201])
+        # lower_bound = np.array([63, 77, 14])	 
+        # upper_bound = np.array([86, 156, 201])
+        lower_bound = np.array([60, 10, 14])	 
+        upper_bound = np.array([88, 156, 201])
+        # lower_bound = np.array([50, 55, 5])	 
+        # upper_bound = np.array([86, 265, 265])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
