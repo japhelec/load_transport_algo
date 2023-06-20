@@ -3,156 +3,184 @@
 import rospy
 import numpy as np
 import cv2
-from cv2 import aruco
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
-from load_transport.msg import cRm_msg, Mc_msg, position_msg
-from hardware import Marker, Payload
-from scipy.sparse.linalg import eigs
+
+from load_transport.msg import position_msg
+from nav_msgs.msg import Odometry
 from scipy.linalg import eig
+from hardware import Drone
+from tf.transformations import quaternion_matrix
 
-class Perception():
+
+class Bearing():
     def __init__(self):      
-        self.tello_ns = "tello_E"
-
-        # [ camera ]
-        self.dist = np.array(([[-0.016272, 0.093492, 0.000093, 0.002999, 0]]))
-        self.mtx = np.array([[929.562627  , 0.      ,   487.474037],
-        [  0.       ,  928.604856, 361.165223],
-        [  0.,           0.,           1.        ]])
-
+        self.tello_ns = rospy.get_param('~tello_ns', "tello_A")
         self.br = CvBridge()
-        self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb, queue_size = 1)
+        self.mtx = np.linalg.inv(np.array([[929.562627  , 0.      ,   487.474037],
+        [  0.       ,  928.604856, 361.165223],
+        [  0.,           0.,           1.        ]]))
+        self.iRb = None
 
+        # [sub]
+        self.sub_image = rospy.Subscriber("/%s/camera/compressed/compressed" % self.tello_ns, CompressedImage, self.cb_image, queue_size = 1)
+        self.sub_odom = rospy.Subscriber('/%s/odom' % self.tello_ns, Odometry, self.cb_odom, queue_size = 1)
 
-        self.preQl = None
-        self.preT = None
+        # [pub]
+        self.pub_bearing_local = rospy.Publisher('/%s/bearing/local' % self.tello_ns, position_msg, queue_size=1)
+        self.pub_bearing_global = rospy.Publisher('/%s/bearing/global' % self.tello_ns, position_msg, queue_size=1)
+        self.counter = 0
 
-    def cb(self, img_raw):
-        ## cvBridge
-        frame = self.br.compressed_imgmsg_to_cv2(img_raw)
+    def cb_image(self, img):
+        # cvBridge
+        frame = self.br.compressed_imgmsg_to_cv2(img)
 
         # convert to hsv colorspace
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # lower bound and upper bound for Green color
-        # ========ping pong========
-        # lower_bound = np.array([3, 150, 135])	 
-        # upper_bound = np.array([26, 265, 265])
-        # sunlight
-        # lower_bound = np.array([-2, 150, 60])	 
-        # upper_bound = np.array([26, 265, 265])
-        # # ========blue========
-        # lower_bound = np.array([107, 133, -4])	 
-        # upper_bound = np.array([132, 243, 211])
-        # # ========red========
-        # lower_bound = np.array([-10, 93, 36])	 
-        # upper_bound = np.array([189, 265, 292])
-        # # ========purple========
-        # lower_bound = np.array([115, 153, 1])	 
-        # upper_bound = np.array([146, 242, 152])
-        # ========green========
-        # lower_bound = np.array([63, 77, 14])	 
-        # upper_bound = np.array([86, 156, 201])
-        lower_bound = np.array([60, 10, 14])	 
-        upper_bound = np.array([88, 156, 201])
-        # lower_bound = np.array([50, 55, 5])	 
-        # upper_bound = np.array([86, 265, 265])
+        # C is orange, D is green, E is blue
+        # C track green, D track blue, E track orange
+        if self.tello_ns == "tello_C":
+            lower_bound = np.array([115, 153, 1])	 
+            upper_bound = np.array([146, 242, 152])
+        elif self.tello_ns == "tello_D":
+            # lower_bound = np.array([107, 133, -4])
+            # upper_bound = np.array([132, 243, 230])
+            lower_bound = np.array([3, 150, 135])	 
+            upper_bound = np.array([26, 265, 265])
+        elif self.tello_ns == "tello_A":
+            # lower_bound = np.array([63, 77, 14])	 
+            # upper_bound = np.array([86, 156, 201])
+            # === sunlight ===
+            lower_bound = np.array([60, 70, 14])	 
+            upper_bound = np.array([88, 130, 201])
 
         # find the colors within the boundaries
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
 
         # contour points
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        contour = max(contours, key = len)
 
-        cv2.drawContours(frame, contour, -1, (0,255,0), 1)
+        if len(contours) > 0:
+            contour = max(contours, key = len)
+            area = cv2.contourArea(contour)
+            
+            if area > 350:
+                self.counter += 1
+                dirname = "C1"
+                # cv2.imwrite('/home/kuei/Documents/records/thesis/vision_estimation/0523/%s/%s/%d.png' %(dirname, self.tello_ns, self.counter),frame)
+        #         cv2.drawContours(frame, contour, -1, (0,255,0), 1)
 
-        # formulate D matrix
-        print("==============")
-        sh = contour.shape
-        c = contour.reshape(sh[0], sh[2])
-        del contour
-        cx = c[:,0]
-        cx = cx[:, None]
-        cy = c[:,1]
-        cy = cy[:, None]
+        #         # contour points back to camera frame
+        #         sh = contour.shape
+        #         c = contour.reshape(sh[0], sh[2])
+        #         c = c[c[:,0]!=0,:]
+        #         c = c[c[:,0]!=959,:]
+        #         c = c[c[:,1]!=0,:]
+        #         c = c[c[:,1]!=719,:]
+        #         sh = c.shape
+        #         del contour
+                
+        #         cx = c[:,0]
+        #         cx = cx[:, None]
+        #         cy = c[:,1]
+        #         cy = cy[:, None]
+
+        #         aux = np.hstack((cx,cy, np.ones((sh[0], 1))))
+        #         aux = self.mtx@(aux.T)
+        #         aux = aux.T
+
+        #         # formulate D matrix
+        #         cx = aux[:,0]
+        #         cx = cx[:, None]
+        #         cy = aux[:,1]
+        #         cy = cy[:, None]
+        #         del aux
+
+        #         D = np.hstack((cx**2+cy**2, cx, cy, np.ones((sh[0], 1))))
+        #         del c
+        #         del cx
+        #         del cy
+
+        #         # find ellipse and eigen
+        #         F = D.T@D
+        #         del D
+        #         dist, vec = self.elpMtxQ(F)
+
+        #         # bearing in {C}
+        #         bc = 0.02*dist*vec
+        #         if bc[2] < 0:
+        #             bc = -bc
+
+        #         msg = position_msg()
+        #         msg.header.stamp = rospy.get_rostime()
+        #         msg.position = bc
+        #         self.pub_bearing_local.publish(msg)
+
+        #         # bearing in {W}
+        #         if self.iRb is None:
+        #             return
+        #         bw = (self.iRb)@(Drone.bRc)@(Drone.camTilt)@bc
+
+        #         msg = position_msg()
+        #         msg.header.stamp = rospy.get_rostime()
+        #         msg.position = bw
+        #         self.pub_bearing_global.publish(msg)
+
+        # cv2.imshow(self.tello_ns, frame)
+        # cv2.waitKey(1)
+
+    def cb_odom(self, odom):
+        orien = odom.pose.pose.orientation
         
-        D = np.hstack((cx**2,cx*cy, cy**2, c, np.ones((sh[0], 1))))
-        del c
-        del cx
-        del cy
-        F = D.T@D
-        del D
-        
+        rotm = quaternion_matrix([orien.x, orien.y, orien.z, orien.w])  # x, y, z, w;   quaternion is w + xi + yj + zk
+        rotm = np.array(rotm)
+        rotm = rotm[0:3, 0:3]
+        Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])  # rotate along x 180
+        Rz_p = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]) # rotate along z 90
+        Rz_n = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]) # rotate along z -90
+        rotm = Rz_p.dot(Rx.dot(rotm.dot(Rx.dot(Rz_n)))) # Rz_p -> Rx -> rotm -> Rx -> Rz_n
+
+        self.iRb = rotm
+
+    def elpMtxQ(self, F):
         w, vr = eig(F)
         A = vr[:, np.argmin(w)]
 
-        # ===================
-        # verify ellipse center
-        B = A[1]
-        C = A[2]
-        D = A[3]
-        E = A[4]
-        F = A[5]
-        A = A[0]
+        a = A[0]
+        d = A[1]
+        e = A[2]
+        f = A[3]
 
-        xc = (B*E-2*C*D)/(4*A*C-B*B)
-        yc = (D*B-2*A*E)/(4*A*C-B*B)
-        # print(xc)
-        # print(yc)
+        Q = np.array([
+            [a, 0, d/2],
+            [0, a, e/2],
+            [d/2, e/2, f]
+        ])
 
-        aux = np.array([xc, yc, 1])
+        w, vr = eig(Q)
+        sorted_indexes = np.argsort(w)
+        w = w[sorted_indexes]
+        vr = vr[:,sorted_indexes]
 
-        t = np.linalg.inv(self.mtx)@(aux)
-        print(t)
+        negative_count = (w < 0).sum()
+        positive_count = (w > 0).sum()
+
+        if negative_count == 1:
+            vec = vr[:,0]
+            dist = np.sqrt( np.absolute((w[1]+w[2])/(2*w[0])) + 1)
+
+        if positive_count == 1:
+            vec = vr[:,2]
+            dist = np.sqrt( np.absolute((w[1]+w[0])/(2*w[2])) + 1)
         
-        # ===================
-
-
-        # ===================
-        # a1 = A[0]
-        # a2 = A[2]
-        # a3 = A[1]/2
-        # a4 = A[3]/2
-        # a5 = A[4]/2
-        # a6 = A[5]
-        
-        # Q = np.array([[a1, a3, a4],[a3, a2, a5], [a4, a5, a6]])
-        # w, vr = eig(Q)
-
-        # sorted_indexes = np.argsort(w)
-        # w = w[sorted_indexes]
-        # vr = vr[:,sorted_indexes]
-        # # # print(w)
-
-        # l2 = w[0]
-        # l0 = w[1]
-        # l1 = w[2]
-
-        # q2 = vr[:, 0]
-        # q0 = vr[:, 1]
-        # q1 = vr[:, 2]
-
-        # n = np.sqrt((l1-l0)/(l1-l2))*q0 + np.sqrt((l0-l2)/(l1-l2))*q2
-        # print(n)
-
-        # # print(q2)
-
-        # t = l2*np.sqrt((l1-l0)/(l1-l2))*q0 + l1*np.sqrt((l0-l2)/(l1-l2))*q2
-        # t = 40*t/np.sqrt(-l1*l2)
-        # # ===================
-        # # print(t)
-
-        cv2.imshow("stream", frame)
-        cv2.waitKey(1)
-        
+        return dist, vec
 
 def main():
-    rospy.init_node('marker_perception', anonymous=True)
-    Perception()
+    rospy.init_node('bearing_perception', anonymous=True)
+    Bearing()
     rospy.spin()
-
 
 if __name__ == '__main__':
     main()
