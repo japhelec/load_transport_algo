@@ -97,13 +97,13 @@ class sLeft(smach.State):
     def execute(self, userdata):
         rospy.loginfo('Executing state LEFT')
 
-        pub1.util_cmd(-0.5, 0, 0, 0)
-        pub2.util_cmd(-0.5, 0, 0, 0)
-        pub3.util_cmd(-0.5, 0, 0, 0)
+        pub1.util_cmd(0, -0.5, 0, 0)
+        pub2.util_cmd(0, -0.5, 0, 0)
+        pub3.util_cmd(0, -0.5, 0, 0)
 
-        rospy.sleep(10.0)
+        rospy.sleep(15.0)
 
-        pub_sm.util_smach('LEFT', 'RIGHT')
+        # pub_sm.util_smach('LEFT', 'RIGHT')
         return 'left_finish'
 
 class sRight(smach.State):
@@ -619,16 +619,28 @@ class sDistanceLeaderStabilization(smach.State):
             #     print((sub1.iRb.T)@(self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)))
             #     self.first = False
 
+            # =====================
+            # MODIFY
+            # =====================
+            # u1 = self.k_form*(bg1 - self.t12 - bg3 + self.t31) + self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)
+            # u2 = self.k_form*(bg2 - self.t23 - bg1 + self.t12)
+            # # u3 = self.k_form*(bg3 - self.t31 - bg2 + self.t23) + self.k_dist*(l31*(self.t31@bg3)*self.t31 - self.l31*self.t31)
+            # u1 = (sub1.iRb.T)@u1
+            # u2 = (sub2.iRb.T)@u2
+            # # u3 = (sub3.iRb.T)@u3
             u1 = self.k_form*(bg1 - self.t12 - bg3 + self.t31) + self.k_dist*(-l31*(self.t31@bg3)*self.t31 + self.l31*self.t31)
             u2 = self.k_form*(bg2 - self.t23 - bg1 + self.t12)
-            # u3 = self.k_form*(bg3 - self.t31 - bg2 + self.t23) + self.k_dist*(l31*(self.t31@bg3)*self.t31 - self.l31*self.t31)
+            u3 = np.array([0,0.3,0])
             u1 = (sub1.iRb.T)@u1
             u2 = (sub2.iRb.T)@u2
-            # u3 = (sub3.iRb.T)@u3
+            u3 = (sub3.iRb.T)@u3
+            # =====================
+            # MODIFY
+            # =====================
 
             pub1.util_cmd(u1[0], u1[1], u1z, u1r)
             pub2.util_cmd(u2[0], u2[1], u2z, u2r)
-            pub3.util_cmd(0, 0, u3z, u3r)
+            pub3.util_cmd(u3[0], u3[1], u3z, u3r)
             rate.sleep()
         
         pub_sm.util_smach('FORMATION_CONTROL', 'LAND')
@@ -709,8 +721,12 @@ class Control():
             smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
                 transitions={'flyup_open_finish':'YAW_SEARCH'})
 
-            # smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
-            #     transitions={'ys_finish':'LAND'})
+            # smach.StateMachine.add('FLYUP_OPEN', sFlyupOpen(), 
+            #     transitions={'flyup_open_finish':'LEFT'})
+            # smach.StateMachine.add('LEFT', sLeft(), 
+            #     transitions={'left_finish':'LAND'})
+
+            
             smach.StateMachine.add('YAW_SEARCH', sYawSearch(), 
                 transitions={'ys_finish':'FORMATION_CONTROL'})
             # smach.StateMachine.add('FORMATION_CONTROL', sBearingStabilization(), 
